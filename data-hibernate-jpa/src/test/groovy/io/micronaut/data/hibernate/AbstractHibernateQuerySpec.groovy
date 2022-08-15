@@ -25,6 +25,8 @@ import io.micronaut.data.tck.entities.Author
 import io.micronaut.data.tck.entities.Book
 import io.micronaut.data.tck.entities.EntityIdClass
 import io.micronaut.data.tck.entities.EntityWithIdClass
+import io.micronaut.data.tck.entities.Face
+import io.micronaut.data.tck.entities.Nose
 import io.micronaut.data.tck.entities.Student
 import io.micronaut.data.tck.tests.AbstractQuerySpec
 import jakarta.inject.Inject
@@ -59,6 +61,14 @@ abstract class AbstractHibernateQuerySpec extends AbstractQuerySpec {
     @Shared
     @Inject
     UserWithWhereRepository userWithWhereRepository
+
+    @Shared
+    @Inject
+    FaceRepository faceRepository;
+
+    @Shared
+    @Inject
+    NoseRepository noseRepository
 
     void "test @where with nullable property values"() {
         when:
@@ -627,6 +637,20 @@ abstract class AbstractHibernateQuerySpec extends AbstractQuerySpec {
             value.totalSize == 2
             value.content.size() == 2
             value.content[0].title == "Pet Cemetery"
+    }
+
+    void "test one-to-one get one entity"() {
+        when:
+            def face = new Face()
+            face.setName("my face")
+            faceRepository.save(face)
+            def nose = new Nose()
+            nose.setFace(face)
+            noseRepository.save(nose)
+
+            def loadedFace = faceRepository.findByNose(nose)
+        then:
+            loadedFace != null
     }
 
     private static Specification<Book> testJoin(String value) {
