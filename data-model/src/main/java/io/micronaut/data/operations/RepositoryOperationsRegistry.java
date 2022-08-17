@@ -13,35 +13,30 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.data.mongodb.database;
+package io.micronaut.data.operations;
 
-import com.mongodb.client.MongoDatabase;
 import io.micronaut.core.annotation.Experimental;
-import io.micronaut.data.model.PersistentEntity;
+import io.micronaut.core.annotation.NonNull;
+import io.micronaut.core.annotation.Nullable;
 
 /**
- * Mongo database factory.
+ * The registry of {@link RepositoryOperations}.
  *
  * @author Denis Stepanov
- * @since 3.3
+ * @since 3.8.0
  */
 @Experimental
-public interface MongoDatabaseFactory {
+public interface RepositoryOperationsRegistry {
 
     /**
-     * The Mongo database factory.
+     * Provide repository operations.
      *
-     * @param persistentEntity The persistent entity
-     * @return The Mongo database
+     * @param repositoryType The operations type
+     * @param dataSourceName The datasource name
+     * @param <T>            The operations type
+     * @return the provided instance
      */
-    MongoDatabase getDatabase(PersistentEntity persistentEntity);
-
-    /**
-     * The Mongo database factory.
-     *
-     * @param entityClass The entity class
-     * @return The Mongo database
-     */
-    MongoDatabase getDatabase(Class<?> entityClass);
+    @NonNull
+    <T extends RepositoryOperations> T provide(Class<T> repositoryType, @Nullable String dataSourceName);
 
 }

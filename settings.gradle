@@ -1,15 +1,5 @@
-pluginManagement {
-    plugins {
-        id 'io.micronaut.build.shared.settings' version getProperty("micronautSharedSettingVersion")
-    }
-    repositories {
-        gradlePluginPortal()
-        mavenCentral()
-    }
-}
-
 plugins {
-    id 'io.micronaut.build.shared.settings'
+    id 'io.micronaut.build.shared.settings' version '5.3.9'
 }
 
 enableFeaturePreview("VERSION_CATALOGS")
@@ -85,6 +75,8 @@ include 'doc-examples:mongo-reactive-example-kotlin'
 if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_15)) {
     include 'doc-examples:mongo-example-records-java'
 }
+include 'doc-examples:mongo-multitenancy-datasource-example-java'
+include 'doc-examples:mongo-multitenancy-database-example-java'
 
 // benchmarks
 include 'benchmarks:benchmark-micronaut-data-jpa'

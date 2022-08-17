@@ -38,29 +38,23 @@ import java.util.stream.Collectors;
  *
  * @param <E>   The entity type
  * @param <R>   The result type
- * @param <Dtb> The database type
  * @author Denis Stepanov
  * @since 3.3.
  */
 @Internal
-final class DefaultMongoPreparedQuery<E, R, Dtb> implements DelegatePreparedQuery<E, R>, MongoPreparedQuery<E, R, Dtb> {
+final class DefaultMongoPreparedQuery<E, R> implements DelegatePreparedQuery<E, R>, MongoPreparedQuery<E, R> {
 
     private final DefaultPreparedQuery<E, R> preparedQuery;
-    private final MongoStoredQuery<E, R, Dtb> mongoStoredQuery;
+    private final MongoStoredQuery<E, R> mongoStoredQuery;
 
     public DefaultMongoPreparedQuery(PreparedQuery<E, R> preparedQuery) {
         this.preparedQuery = (DefaultPreparedQuery<E, R>) preparedQuery;
-        this.mongoStoredQuery = (MongoStoredQuery<E, R, Dtb>) ((DelegateStoredQuery<Object, Object>) preparedQuery).getStoredQueryDelegate();
+        this.mongoStoredQuery = (MongoStoredQuery<E, R>) ((DelegateStoredQuery<Object, Object>) preparedQuery).getStoredQueryDelegate();
     }
 
     @Override
     public RuntimePersistentEntity<E> getRuntimePersistentEntity() {
         return mongoStoredQuery.getRuntimePersistentEntity();
-    }
-
-    @Override
-    public Dtb getDatabase() {
-        return mongoStoredQuery.getDatabase();
     }
 
     @Override

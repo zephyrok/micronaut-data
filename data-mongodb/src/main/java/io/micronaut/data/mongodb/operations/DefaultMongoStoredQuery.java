@@ -65,6 +65,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 /**
@@ -72,21 +73,19 @@ import java.util.stream.Collectors;
  *
  * @param <E>   The entity type
  * @param <R>   The result type
- * @param <Dtb> The database type
  * @author Denis Stepanov
  * @since 3.3.
  */
 @Internal
-final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E, R>, MongoStoredQuery<E, R, Dtb> {
+final class DefaultMongoStoredQuery<E, R> implements DelegateStoredQuery<E, R>, MongoStoredQuery<E, R> {
 
     private static final BsonDocument EMPTY = new BsonDocument();
 
     private final StoredQuery<E, R> storedQuery;
-    private final CodecRegistry codecRegistry;
+    private final Supplier<CodecRegistry> codecRegistry;
     private final AttributeConverterRegistry attributeConverterRegistry;
     private final RuntimeEntityRegistry runtimeEntityRegistry;
     private final ConversionService<?> conversionService;
-    private final Dtb database;
     private final RuntimePersistentEntity<E> persistentEntity;
     private final UpdateData updateData;
     private final FindData findData;
@@ -95,31 +94,28 @@ final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E,
     private final boolean isCount;
 
     DefaultMongoStoredQuery(StoredQuery<E, R> storedQuery,
-                            CodecRegistry codecRegistry,
+                            Supplier<CodecRegistry> codecRegistry,
                             AttributeConverterRegistry attributeConverterRegistry,
                             RuntimeEntityRegistry runtimeEntityRegistry,
                             ConversionService<?> conversionService,
-                            RuntimePersistentEntity<E> persistentEntity,
-                            Dtb database) {
+                            RuntimePersistentEntity<E> persistentEntity) {
         this(storedQuery,
                 codecRegistry,
                 attributeConverterRegistry,
                 runtimeEntityRegistry,
                 conversionService,
                 persistentEntity,
-                database,
                 storedQuery.getAnnotationMetadata().enumValue(DataMethod.NAME, DataMethod.META_MEMBER_OPERATION_TYPE, DataMethod.OperationType.class)
                         .orElseThrow(IllegalStateException::new),
                 storedQuery.getAnnotationMetadata().stringValue(Query.class, "update").orElse(null));
     }
 
     DefaultMongoStoredQuery(StoredQuery<E, R> storedQuery,
-                            CodecRegistry codecRegistry,
+                            Supplier<CodecRegistry> codecRegistry,
                             AttributeConverterRegistry attributeConverterRegistry,
                             RuntimeEntityRegistry runtimeEntityRegistry,
                             ConversionService<?> conversionService,
                             RuntimePersistentEntity<E> persistentEntity,
-                            Dtb database,
                             DataMethod.OperationType operationType,
                             String updateJson) {
         this.storedQuery = storedQuery;
@@ -127,7 +123,6 @@ final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E,
         this.attributeConverterRegistry = attributeConverterRegistry;
         this.runtimeEntityRegistry = runtimeEntityRegistry;
         this.conversionService = conversionService;
-        this.database = database;
         this.persistentEntity = persistentEntity;
         if (operationType == DataMethod.OperationType.QUERY || operationType == DataMethod.OperationType.EXISTS || operationType == DataMethod.OperationType.COUNT) {
             String query = storedQuery.getQuery();
@@ -224,11 +219,6 @@ final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E,
     @Override
     public RuntimePersistentEntity<E> getRuntimePersistentEntity() {
         return persistentEntity;
-    }
-
-    @Override
-    public Dtb getDatabase() {
-        return database;
     }
 
     @Override
@@ -357,7 +347,7 @@ final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E,
             BsonInt32 queryParameterIndex = bsonDocument.getInt32(MongoQueryBuilder.QUERY_PARAMETER_PLACEHOLDER, null);
             if (queryParameterIndex != null) {
                 int index = queryParameterIndex.getValue();
-                return getValue(index, getQueryBindings().get(index), invocationContext, persistentEntity, codecRegistry, entity);
+                return getValue(index, getQueryBindings().get(index), invocationContext, persistentEntity, entity);
             }
             for (Map.Entry<String, BsonValue> entry : bsonDocument.entrySet()) {
                 BsonValue bsonValue = entry.getValue();
@@ -394,7 +384,7 @@ final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E,
                                    QueryParameterBinding queryParameterBinding,
                                    InvocationContext<?, ?> invocationContext,
                                    RuntimePersistentEntity<T> persistentEntity,
-                                   CodecRegistry codecRegistry, E entity) {
+                                   E entity) {
         Class<?> parameterConverter = queryParameterBinding.getParameterConverterClass();
         Object value = queryParameterBinding.getValue();
         if (value == null) {
@@ -458,7 +448,7 @@ final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E,
                     return new BsonObjectId(new ObjectId((String) value));
                 }
             }
-            return MongoUtils.toBsonValue(conversionService, value, codecRegistry);
+            return MongoUtils.toBsonValue(conversionService, value, codecRegistry.get());
         } else {
             Class<?> finalParameterConverter = parameterConverter;
             return new BsonArray(values.stream().map(val -> {
@@ -473,7 +463,7 @@ final class DefaultMongoStoredQuery<E, R, Dtb> implements DelegateStoredQuery<E,
                     }
                     val = convert(finalParameterConverter, val, argument);
                 }
-                return MongoUtils.toBsonValue(conversionService, val, codecRegistry);
+                return MongoUtils.toBsonValue(conversionService, val, codecRegistry.get());
             }).collect(Collectors.toList()));
         }
     }

@@ -24,22 +24,16 @@ import io.micronaut.data.model.runtime.RuntimePersistentEntity;
  *
  * @param <E>   The entity type
  * @param <R>   The result type
- * @param <Dtb> The database type
  * @author Denis Stepanov
  * @since 3.3.0
  */
 @Experimental
-public interface MongoPreparedQuery<E, R, Dtb> extends PreparedQuery<E, R> {
+public interface MongoPreparedQuery<E, R> extends PreparedQuery<E, R> {
 
     /**
      * @return The persistent entity
      */
     RuntimePersistentEntity<E> getRuntimePersistentEntity();
-
-    /**
-     * @return The associated databae
-     */
-    Dtb getDatabase();
 
     /**
      * @return Is aggregation query?

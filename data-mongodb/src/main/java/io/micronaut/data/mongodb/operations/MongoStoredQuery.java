@@ -25,22 +25,16 @@ import io.micronaut.data.model.runtime.StoredQuery;
  *
  * @param <E>   The entity type
  * @param <R>   The result type
- * @param <Dtb> The database type
  * @author Denis Stepanov
  * @since 3.3.
  */
 @Experimental
-public interface MongoStoredQuery<E, R, Dtb> extends StoredQuery<E, R> {
+public interface MongoStoredQuery<E, R> extends StoredQuery<E, R> {
 
     /**
      * @return The persistent entity
      */
     RuntimePersistentEntity<E> getRuntimePersistentEntity();
-
-    /**
-     * @return The associated databae
-     */
-    Dtb getDatabase();
 
     /**
      * @return Is aggregation query?

@@ -13,23 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.data.intercept;
+package io.micronaut.data.runtime.intercept;
 
 import io.micronaut.aop.InterceptedMethod;
+import io.micronaut.aop.InterceptorBean;
 import io.micronaut.aop.MethodInterceptor;
 import io.micronaut.aop.MethodInvocationContext;
-import io.micronaut.aop.kotlin.KotlinInterceptedMethod;
 import io.micronaut.context.annotation.Prototype;
 import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.annotation.NonNull;
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.exceptions.EmptyResultException;
+import io.micronaut.data.intercept.DataInterceptor;
+import io.micronaut.data.intercept.RepositoryMethodKey;
 import io.micronaut.inject.InjectionPoint;
-import io.micronaut.transaction.interceptor.CoroutineTxHelper;
-import io.micronaut.transaction.support.TransactionSynchronizationManager;
+import io.micronaut.transaction.interceptor.TxCompletionStageDataIntroductionHelper;
 import jakarta.inject.Inject;
 
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -41,12 +42,13 @@ import java.util.concurrent.CompletionStage;
  * @author graemerocher
  * @since 1.0
  */
+@InterceptorBean(Repository.class)
 @Prototype
 @Internal
 public final class DataIntroductionAdvice implements MethodInterceptor<Object, Object> {
 
     private final DataInterceptorResolver dataInterceptorResolver;
-    private final CoroutineTxHelper coroutineTxHelper;
+    private final TxCompletionStageDataIntroductionHelper completionStageHelper;
     @Nullable
     private final InjectionPoint<?> injectionPoint;
 
@@ -54,15 +56,15 @@ public final class DataIntroductionAdvice implements MethodInterceptor<Object, O
      * Default constructor.
      *
      * @param dataInterceptorResolver The data interceptor resolver
-     * @param coroutineTxHelper       The coroutines helper
+     * @param completionStageHelper
      * @param injectionPoint          The injection point
      */
     @Inject
     public DataIntroductionAdvice(@NonNull DataInterceptorResolver dataInterceptorResolver,
-                                  @Nullable CoroutineTxHelper coroutineTxHelper,
+                                  @Nullable TxCompletionStageDataIntroductionHelper completionStageHelper,
                                   @Nullable InjectionPoint<?> injectionPoint) {
         this.dataInterceptorResolver = dataInterceptorResolver;
-        this.coroutineTxHelper = coroutineTxHelper;
+        this.completionStageHelper = completionStageHelper;
         this.injectionPoint = injectionPoint;
     }
 
@@ -91,13 +93,12 @@ public final class DataIntroductionAdvice implements MethodInterceptor<Object, O
                                             MethodInvocationContext<Object, Object> context,
                                             DataInterceptor<Object, Object> dataInterceptor,
                                             RepositoryMethodKey key) {
-        TransactionSynchronizationManager.TransactionSynchronizationState state = null;
-        if (interceptedMethod instanceof KotlinInterceptedMethod) {
-            KotlinInterceptedMethod kotlinInterceptedMethod = (KotlinInterceptedMethod) interceptedMethod;
-            state = Objects.requireNonNull(coroutineTxHelper).getTxState(kotlinInterceptedMethod);
+        CompletionStage<Object> completionStage;
+        if (completionStageHelper != null) {
+            completionStage = completionStageHelper.decorate(interceptedMethod, () -> (CompletionStage<Object>) dataInterceptor.intercept(key, context));
+        } else {
+            completionStage = (CompletionStage<Object>) dataInterceptor.intercept(key, context);
         }
-        CompletionStage<?> completionStage = TransactionSynchronizationManager.decorateCompletionStage(state,
-            () -> (CompletionStage<?>) dataInterceptor.intercept(key, context));
         CompletableFuture<Object> completableFuture = new CompletableFuture<>();
         completionStage.whenComplete((value, throwable) -> {
             if (throwable == null) {

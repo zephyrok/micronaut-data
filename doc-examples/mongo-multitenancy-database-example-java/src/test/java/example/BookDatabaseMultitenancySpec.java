@@ -1,0 +1,67 @@
+package example;
+
+import io.micronaut.http.annotation.Header;
+import io.micronaut.http.client.annotation.Client;
+import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import jakarta.inject.Inject;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
+@MicronautTest
+class BookDatabaseMultitenancySpec {
+
+    @Inject
+    FooBookClient fooBookClient;
+
+    @Inject
+    BarBookClient barBookClient;
+
+    @AfterEach
+    public void cleanup() {
+        fooBookClient.deleteAll();
+        barBookClient.deleteAll();
+    }
+
+    @Test
+    void testRest() {
+        // When: A book created in FOO tenant
+        BookDto book = fooBookClient.save("The Stand", 1000);
+        assertNotNull(book.getId());
+        // Then: The book exists in FOO tenant
+        book = fooBookClient.findOne(book.getId()).orElse(null);
+        assertNotNull(book);
+        assertEquals("The Stand", book.getTitle());
+        // And: There is one book
+        assertEquals(1, fooBookClient.findAll().size());
+        assertTrue(fooBookClient.findAll().iterator().hasNext());
+        // And: There is no books in BAR tenant
+        int size = barBookClient.findAll().size();
+        assertEquals(0, size);
+
+        // When: Delete all BARs
+        barBookClient.deleteAll();
+        // Then: FOOs aren't deletes
+        assertEquals(1, fooBookClient.findAll().size());
+
+        // When: Delete all FOOs
+        fooBookClient.deleteAll();
+        // Then: BARs aren deletes
+        assertEquals(0, fooBookClient.findAll().size());
+    }
+}
+
+@Header(name = "tenantId", value = "foo")
+@Client("/books")
+interface FooBookClient extends BookClient {
+}
+
+@Header(name = "tenantId", value = "bar")
+@Client("/books")
+interface BarBookClient extends BookClient {
+}

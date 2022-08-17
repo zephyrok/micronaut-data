@@ -13,13 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micronaut.data.intercept;
+package io.micronaut.data.runtime.intercept;
 
 import io.micronaut.aop.MethodInvocationContext;
-import io.micronaut.context.BeanLocator;
-import io.micronaut.context.Qualifier;
-import io.micronaut.context.exceptions.ConfigurationException;
-import io.micronaut.context.exceptions.NoSuchBeanException;
 import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.annotation.NonNull;
@@ -29,14 +25,18 @@ import io.micronaut.core.beans.BeanIntrospector;
 import io.micronaut.data.annotation.Repository;
 import io.micronaut.data.annotation.RepositoryConfiguration;
 import io.micronaut.data.exceptions.DataAccessException;
+import io.micronaut.data.intercept.DataInterceptor;
+import io.micronaut.data.intercept.RepositoryMethodKey;
 import io.micronaut.data.intercept.annotation.DataMethod;
 import io.micronaut.data.operations.PrimaryRepositoryOperations;
 import io.micronaut.data.operations.RepositoryOperations;
+import io.micronaut.data.operations.RepositoryOperationsRegistry;
+import io.micronaut.data.runtime.multitenancy.DataSourceTenantResolver;
 import io.micronaut.inject.InjectionPoint;
-import io.micronaut.inject.qualifiers.Qualifiers;
 import jakarta.inject.Singleton;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -49,20 +49,34 @@ import java.util.concurrent.ConcurrentHashMap;
 @Singleton
 final class DataInterceptorResolver {
 
-    private final BeanLocator locator;
-    private final Map<RepositoryMethodKey, DataInterceptor<? super Object, ? super Object>> interceptors = new ConcurrentHashMap<>();
+    private final RepositoryOperationsRegistry repositoryOperationsRegistry;
+    @Nullable
+    private final DataSourceTenantResolver tenantResolver;
+    private final Map<TenantRepositoryMethodKey, DataInterceptor<? super Object, ? super Object>> interceptors = new ConcurrentHashMap<>();
 
-    DataInterceptorResolver(BeanLocator locator) {
-        this.locator = locator;
+    DataInterceptorResolver(RepositoryOperationsRegistry repositoryOperationsRegistry, @Nullable DataSourceTenantResolver tenantResolver) {
+        this.repositoryOperationsRegistry = repositoryOperationsRegistry;
+        this.tenantResolver = tenantResolver;
     }
 
     DataInterceptor<Object, Object> resolve(@NonNull RepositoryMethodKey key,
                                             @NonNull MethodInvocationContext<Object, Object> context,
                                             @Nullable InjectionPoint<?> injectionPoint) {
-        return interceptors.computeIfAbsent(key, (k) -> {
-            final String dataSourceName = context.stringValue(Repository.class)
-                .orElseGet(() -> injectionPoint == null ? null : injectionPoint.getAnnotationMetadata().stringValue(Repository.class).orElse(null));
-            final Class<?> operationsType = context.classValue(RepositoryConfiguration.class, "operations")
+        String tenantDataSourceName;
+        if (tenantResolver != null) {
+            tenantDataSourceName = tenantResolver.resolveTenantDataSourceName();
+        } else {
+            tenantDataSourceName = null;
+        }
+        return interceptors.computeIfAbsent(new TenantRepositoryMethodKey(tenantDataSourceName, key), (k) -> {
+            final String dataSourceName;
+            if (tenantDataSourceName == null) {
+                dataSourceName = context.stringValue(Repository.class)
+                    .orElseGet(() -> injectionPoint == null ? null : injectionPoint.getAnnotationMetadata().stringValue(Repository.class).orElse(null));
+            } else {
+                dataSourceName = tenantDataSourceName;
+            }
+            final Class<? extends RepositoryOperations> operationsType = context.classValue(RepositoryConfiguration.class, "operations")
                 .orElse(PrimaryRepositoryOperations.class);
             final Class<?> interceptorType = context
                 .classValue(DataMethod.class, DataMethod.META_MEMBER_INTERCEPTOR)
@@ -88,23 +102,13 @@ final class DataInterceptorResolver {
 
     @NonNull
     private DataInterceptor<Object, Object> findInterceptor(@Nullable String dataSourceName,
-                                                            @NonNull Class<?> operationsType,
+                                                            @NonNull Class<? extends RepositoryOperations> operationsType,
                                                             @NonNull Class<?> interceptorType) {
         if (!RepositoryOperations.class.isAssignableFrom(operationsType)) {
             throw new IllegalArgumentException("Repository type must be an instance of RepositoryOperations!");
         }
 
-        final RepositoryOperations datastore;
-        try {
-            if (dataSourceName != null) {
-                final Qualifier qualifier = Qualifiers.byName(dataSourceName);
-                datastore = (RepositoryOperations) locator.getBean(operationsType, qualifier);
-            } else {
-                datastore = (RepositoryOperations) locator.getBean(operationsType);
-            }
-        } catch (NoSuchBeanException e) {
-            throw new ConfigurationException("No backing RepositoryOperations configured for repository. Check your configuration and try again", e);
-        }
+        final RepositoryOperations datastore = repositoryOperationsRegistry.provide(operationsType, dataSourceName);
         final BeanIntrospection<Object> introspection = BeanIntrospector.SHARED.findIntrospections(ref ->
             ref.isPresent() && interceptorType.isAssignableFrom(ref.getBeanType())).stream().findFirst().orElseThrow(() ->
             new DataAccessException("No Data interceptor found for type: " + interceptorType)
@@ -117,6 +121,35 @@ final class DataInterceptorResolver {
             interceptor = (DataInterceptor) introspection.instantiate(datastore);
         }
         return interceptor;
+    }
+
+    private static final class TenantRepositoryMethodKey {
+        private final String dataSource;
+        private final RepositoryMethodKey key;
+        private final int hashCode;
+
+        TenantRepositoryMethodKey(String dataSource, RepositoryMethodKey key) {
+            this.dataSource = dataSource;
+            this.key = key;
+            this.hashCode = Objects.hash(dataSource, key);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            TenantRepositoryMethodKey that = (TenantRepositoryMethodKey) o;
+            return Objects.equals(dataSource, that.dataSource) && key.equals(that.key);
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
     }
 
 }
