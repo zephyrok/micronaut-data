@@ -7,6 +7,7 @@ dependencies {
     annotationProcessor mn.micronaut.graal
     annotationProcessor libs.micronaut.docs
 
+    api mn.micronaut.runtime
     api libs.micronaut.reactor
     api projects.dataModel
     api projects.dataRuntime

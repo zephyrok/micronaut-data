@@ -28,6 +28,6 @@ trait OracleTestPropertyProvider implements SharedDatabaseContainerTestPropertyP
 
     @Override
     int sharedSpecsCount() {
-        return 5
+        return 6
     }
 }

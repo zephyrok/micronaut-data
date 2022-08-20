@@ -28,6 +28,6 @@ trait MSSQLTestPropertyProvider implements SharedDatabaseContainerTestPropertyPr
 
     @Override
     int sharedSpecsCount() {
-        return 8
+        return 9
     }
 }

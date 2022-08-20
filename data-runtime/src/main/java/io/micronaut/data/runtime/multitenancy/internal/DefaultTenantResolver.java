@@ -9,7 +9,11 @@ import java.io.Serializable;
 
 @Internal
 @Singleton
-@Requires(missingBeans = TenantResolver.class, classes = io.micronaut.multitenancy.tenantresolver.TenantResolver.class)
+@Requires(
+    beans = io.micronaut.multitenancy.tenantresolver.TenantResolver.class,
+    missingBeans = TenantResolver.class,
+    classes = io.micronaut.multitenancy.tenantresolver.TenantResolver.class
+)
 class DefaultTenantResolver implements TenantResolver {
 
     private final io.micronaut.multitenancy.tenantresolver.TenantResolver tenantResolver;

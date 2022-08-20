@@ -15,9 +15,12 @@
  */
 package io.micronaut.data.jdbc.mariadb
 
-
 import io.micronaut.data.jdbc.SharedDatabaseContainerTestPropertyProvider
 import io.micronaut.data.model.query.builder.sql.Dialect
+import org.testcontainers.containers.JdbcDatabaseContainer
+
+import java.sql.Connection
+import java.sql.Driver
 
 trait MariaTestPropertyProvider implements SharedDatabaseContainerTestPropertyProvider {
 
@@ -32,6 +35,19 @@ trait MariaTestPropertyProvider implements SharedDatabaseContainerTestPropertyPr
 
     @Override
     int sharedSpecsCount() {
-        return 5
+        return 6
+    }
+
+    @Override
+    void startContainer(JdbcDatabaseContainer container) {
+        container.start()
+        Driver instance = container.getJdbcDriverInstance()
+        def url = container.getJdbcUrl()
+        final Properties info = new Properties()
+        info.put("user", "root")
+        info.put("password", container.getPassword())
+        try (Connection connection = instance.connect(url, info)) {
+            connection.createStatement().execute('''GRANT ALL PRIVILEGES ON *.* TO 'test'@'%' WITH GRANT OPTION;''')
+        }
     }
 }

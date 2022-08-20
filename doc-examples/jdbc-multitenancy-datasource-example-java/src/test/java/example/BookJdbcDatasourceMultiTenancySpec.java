@@ -3,24 +3,41 @@ package example;
 import io.micronaut.http.annotation.Header;
 import io.micronaut.http.client.annotation.Client;
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest;
+import io.micronaut.transaction.jdbc.DelegatingDataSource;
 import jakarta.inject.Inject;
+import jakarta.inject.Named;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
+
+import javax.sql.DataSource;
+
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@MicronautTest
-class BookDatabaseMultitenancySpec {
+@MicronautTest(transactional = false)
+class BookJdbcDatasourceMultiTenancySpec {
 
     @Inject
     FooBookClient fooBookClient;
 
     @Inject
     BarBookClient barBookClient;
+
+    @Inject
+    @Named("bar")
+    DataSource barDataSource;
+
+    @Inject
+    @Named("foo")
+    DataSource fooDataSource;
 
     @AfterEach
     public void cleanup() {
@@ -29,7 +46,7 @@ class BookDatabaseMultitenancySpec {
     }
 
     @Test
-    void testRest() {
+    void testRest() throws SQLException {
         // When: A book created in FOO tenant
         BookDto book = fooBookClient.save("The Stand", 1000);
         assertNotNull(book.getId());
@@ -41,8 +58,10 @@ class BookDatabaseMultitenancySpec {
         assertEquals(1, fooBookClient.findAll().size());
         assertTrue(fooBookClient.findAll().iterator().hasNext());
         // And: There is no books in BAR tenant
-        int size = barBookClient.findAll().size();
-        assertEquals(0, size);
+        assertEquals(0, barBookClient.findAll().size());
+        // And: JDBC client validates previous steps
+        assertEquals(1, getBooksCount(fooDataSource));
+        assertEquals(0, getBooksCount(barDataSource));
 
         // When: Delete all BARs
         barBookClient.deleteAll();
@@ -53,6 +72,20 @@ class BookDatabaseMultitenancySpec {
         fooBookClient.deleteAll();
         // Then: BARs aren deletes
         assertEquals(0, fooBookClient.findAll().size());
+    }
+
+    private long getBooksCount(DataSource ds) throws SQLException {
+        if (ds instanceof DelegatingDataSource) {
+            ds = ((DelegatingDataSource) ds).getTargetDataSource();
+        }
+        try (Connection connection = ds.getConnection()) {
+            try (PreparedStatement ps = connection.prepareStatement("select count(*) from book")) {
+                try (ResultSet resultSet = ps.executeQuery()) {
+                    resultSet.next();
+                    return resultSet.getLong(1);
+                }
+            }
+        }
     }
 }
 
