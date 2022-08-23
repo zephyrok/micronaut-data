@@ -160,8 +160,8 @@ public final class DefaultJdbcRepositoryOperations extends AbstractSqlRepository
      * @param entityRegistry             The entity registry
      * @param conversionService          The conversion service
      * @param attributeConverterRegistry The attribute converter registry
-     * @param schemaTenantResolver
-     * @param schemaHandler
+     * @param schemaTenantResolver       The schema tenant resolver
+     * @param schemaHandler              The schema handler
      */
     @Internal
     protected DefaultJdbcRepositoryOperations(@Parameter String dataSourceName,

@@ -74,8 +74,8 @@ abstract class AbstractMongoRepositoryOperations<Dtb> extends AbstractRepository
 
     protected final MongoCollectionNameProvider collectionNameProvider;
     protected final MongoDatabaseNameProvider databaseNameProvider;
-    protected static final Logger QUERY_LOG = DataSettings.QUERY_LOG;
     protected static final BsonDocument EMPTY = new BsonDocument();
+    protected static final Logger QUERY_LOG = DataSettings.QUERY_LOG;
 
     /**
      * Default constructor.
