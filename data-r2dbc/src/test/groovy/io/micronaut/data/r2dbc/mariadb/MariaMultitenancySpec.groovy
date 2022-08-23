@@ -1,9 +1,9 @@
-package io.micronaut.data.jdbc.mariadb
+package io.micronaut.data.r2dbc.mariadb
 
-import io.micronaut.data.jdbc.AbstractJdbcMultitenancySpec
-import io.micronaut.data.jdbc.mysql.MySqlBookRepository
+import io.micronaut.data.r2dbc.AbstractR2dbcMultitenancySpec
+import io.micronaut.data.r2dbc.mysql.MySqlBookRepository
 
-class MariaMultitenancySpec extends AbstractJdbcMultitenancySpec {
+class MariaMultitenancySpec extends AbstractR2dbcMultitenancySpec {
 
     @Override
     boolean supportsSchemaMultitenancy() {

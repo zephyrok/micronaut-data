@@ -1,9 +1,8 @@
 package io.micronaut.data.jdbc.oraclexe
 
+import io.micronaut.data.jdbc.AbstractJdbcMultitenancySpec
 
-import io.micronaut.data.tck.tests.AbstractMultitenancySpec
-
-class OracleMultitenancySpec extends AbstractMultitenancySpec implements OracleTestPropertyProvider {
+class OracleMultitenancySpec extends AbstractJdbcMultitenancySpec {
 
     @Override
     boolean supportsSchemaMultitenancy() {
@@ -13,5 +12,14 @@ class OracleMultitenancySpec extends AbstractMultitenancySpec implements OracleT
     @Override
     Map<String, String> getExtraProperties() {
         return [bookRepositoryClass: OracleXEBookRepository.name]
+    }
+
+    @Override
+    Map<String, String> getDataSourceProperties() {
+        return [
+                'db-type'        : 'oracle',
+                'schema-generate': 'CREATE_DROP',
+                'dialect'        : 'ORACLE'
+        ]
     }
 }

@@ -1,5 +1,8 @@
+import io.micronaut.testresources.buildtools.KnownModules
+
 plugins {
     id "io.micronaut.build.internal.data-module"
+    id 'io.micronaut.test-resources'
 }
 
 dependencies {
@@ -65,8 +68,28 @@ dependencies {
     testImplementation libs.drivers.r2dbc.postgresql
     testImplementation libs.drivers.jdbc.postgresql
 
+    testImplementation mn.micronaut.multitenancy
+    testImplementation mn.micronaut.http.netty
+
     testCompileOnly mn.micronaut.inject.groovy
     testCompileOnly projects.dataProcessor
+}
+
+micronaut {
+    version = '3.6.0'
+    testResources {
+        enabled = true
+        inferClasspath = false
+        additionalModules.add(KnownModules.R2DBC_POSTGRESQL)
+        additionalModules.add(KnownModules.R2DBC_MYSQL)
+        additionalModules.add(KnownModules.R2DBC_MARIADB)
+        additionalModules.add(KnownModules.R2DBC_ORACLE_XE)
+        additionalModules.add(KnownModules.R2DBC_MSSQL)
+    }
+}
+
+dependencies {
+    testResourcesService libs.drivers.jdbc.mysql
 }
 
 tasks.named("test") {
@@ -86,3 +109,4 @@ micronautBuild {
         }
     }
 }
+

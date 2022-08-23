@@ -1,9 +1,8 @@
-package io.micronaut.data.jdbc.mariadb
+package io.micronaut.data.r2dbc.mysql
 
-import io.micronaut.data.jdbc.AbstractJdbcMultitenancySpec
-import io.micronaut.data.jdbc.mysql.MySqlBookRepository
+import io.micronaut.data.r2dbc.AbstractR2dbcMultitenancySpec
 
-class MariaMultitenancySpec extends AbstractJdbcMultitenancySpec {
+class MySqlMultitenancySpec extends AbstractR2dbcMultitenancySpec {
 
     @Override
     boolean supportsSchemaMultitenancy() {
@@ -19,7 +18,7 @@ class MariaMultitenancySpec extends AbstractJdbcMultitenancySpec {
     @Override
     Map<String, String> getDataSourceProperties() {
         return [
-                'db-type'        : 'mariadb',
+                'db-type'        : 'mysql',
                 'schema-generate': 'CREATE_DROP',
                 'dialect'        : 'MYSQL'
         ]

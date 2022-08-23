@@ -1,9 +1,8 @@
 package io.micronaut.data.jdbc.h2
 
+import io.micronaut.data.jdbc.AbstractJdbcMultitenancySpec
 
-import io.micronaut.data.tck.tests.AbstractMultitenancySpec
-
-class H2MultitenancySpec extends AbstractMultitenancySpec implements H2TestPropertyProvider {
+class H2MultitenancySpec extends AbstractJdbcMultitenancySpec implements H2TestPropertyProvider {
 
     @Override
     Map<String, String> getExtraProperties() {

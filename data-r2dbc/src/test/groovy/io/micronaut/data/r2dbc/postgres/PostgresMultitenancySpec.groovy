@@ -1,8 +1,8 @@
-package io.micronaut.data.jdbc.postgres
+package io.micronaut.data.r2dbc.postgres
 
-import io.micronaut.data.jdbc.AbstractJdbcMultitenancySpec
+import io.micronaut.data.r2dbc.AbstractR2dbcMultitenancySpec
 
-class PostgresMultitenancySpec extends AbstractJdbcMultitenancySpec {
+class PostgresMultitenancySpec extends AbstractR2dbcMultitenancySpec {
 
     @Override
     Map<String, String> getExtraProperties() {
