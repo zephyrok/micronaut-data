@@ -71,11 +71,11 @@ import java.util.stream.Collectors;
 @Internal
 abstract class AbstractMongoRepositoryOperations<Dtb> extends AbstractRepositoryOperations
         implements HintsCapableRepository, PreparedQueryDecorator, MethodContextAwareStoredQueryDecorator {
+    protected static final BsonDocument EMPTY = new BsonDocument();
+    protected static final Logger QUERY_LOG = DataSettings.QUERY_LOG;
 
     protected final MongoCollectionNameProvider collectionNameProvider;
     protected final MongoDatabaseNameProvider databaseNameProvider;
-    protected static final BsonDocument EMPTY = new BsonDocument();
-    protected static final Logger QUERY_LOG = DataSettings.QUERY_LOG;
 
     /**
      * Default constructor.

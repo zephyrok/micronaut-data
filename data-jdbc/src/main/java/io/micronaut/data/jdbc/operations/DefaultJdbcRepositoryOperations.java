@@ -164,6 +164,7 @@ public final class DefaultJdbcRepositoryOperations extends AbstractSqlRepository
      * @param schemaHandler              The schema handler
      */
     @Internal
+    @SuppressWarnings("ParameterNumber")
     protected DefaultJdbcRepositoryOperations(@Parameter String dataSourceName,
                                               @Parameter DataJdbcConfiguration jdbcConfiguration,
                                               DataSource dataSource,

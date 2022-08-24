@@ -19,9 +19,20 @@ import io.micronaut.core.annotation.Nullable;
 
 import java.io.Serializable;
 
+/**
+ * The tenant resolver for multi-tenancy.
+ *
+ * @author Denis Stepanov
+ * @since 3.8.0
+ */
 @FunctionalInterface
 public interface TenantResolver {
 
+    /**
+     * Resolves the tenant name.
+     *
+     * @return The tenant name
+     */
     @Nullable
     Serializable resolveTenantIdentifier();
 }

@@ -17,9 +17,20 @@ package io.micronaut.data.runtime.multitenancy;
 
 import io.micronaut.core.annotation.Nullable;
 
+/**
+ * The tenant resolver for multi-tenancy mode DATASOURCE.
+ *
+ * @author Denis Stepanov
+ * @since 3.8.0
+ */
 @FunctionalInterface
 public interface DataSourceTenantResolver {
 
+    /**
+     * Resolves the tenant data source name.
+     *
+     * @return The data source name
+     */
     @Nullable
     String resolveTenantDataSourceName();
 }

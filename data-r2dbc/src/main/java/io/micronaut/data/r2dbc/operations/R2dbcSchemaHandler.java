@@ -20,13 +20,34 @@ import io.micronaut.data.model.query.builder.sql.Dialect;
 import io.r2dbc.spi.Connection;
 import org.reactivestreams.Publisher;
 
+/**
+ * The schema handler for R2DBC.
+ *
+ * @author Denis Stepanov
+ * @since 3.8.0
+ */
 @Experimental
 public interface R2dbcSchemaHandler {
 
+    /**
+     * Creates a new schema.
+     *
+     * @param connection The R2DBC connection
+     * @param dialect    The dialect
+     * @param name       The schema name
+     *
+     * @return The publisher
+     */
     Publisher<Void> createSchema(Connection connection, Dialect dialect, String name);
 
     /**
-     * Uses the given schema. Defaults to "SET SCHEMA NAME".
+     * Uses the given schema..
+     *
+     * @param connection The R2DBC connection
+     * @param dialect    The dialect
+     * @param name       The schema name
+     *
+     * @return The publisher
      */
     Publisher<Void> useSchema(Connection connection, Dialect dialect, String name);
 

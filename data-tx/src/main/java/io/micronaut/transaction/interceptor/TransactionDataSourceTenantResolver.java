@@ -17,9 +17,20 @@ package io.micronaut.transaction.interceptor;
 
 import io.micronaut.core.annotation.Nullable;
 
+/**
+ * Resolves the tenant data source name for the transactional manager.
+ *
+ * @author Denis Stepanov
+ * @since 3.8.0
+ */
 @FunctionalInterface
 public interface TransactionDataSourceTenantResolver {
 
+
+    /**
+     * Resolves the tenant's data source name.
+     * @return The data source name
+     */
     @Nullable
     String resolveTenantDataSourceName();
 }

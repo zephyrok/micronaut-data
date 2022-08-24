@@ -26,6 +26,12 @@ import org.reactivestreams.Publisher;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+/**
+ * The default implementation of {@link R2dbcSchemaHandler}.
+ *
+ * @author Denis Stepanv
+ * @since 3.8.0
+ */
 @Singleton
 @Internal
 final class DefaultR2dbcSchemaHandler implements R2dbcSchemaHandler {
