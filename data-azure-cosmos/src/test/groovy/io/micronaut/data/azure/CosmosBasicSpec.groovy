@@ -18,7 +18,9 @@ import io.micronaut.core.type.Argument
 import io.micronaut.data.document.mongodb.repositories.CosmosBookRepository
 import io.micronaut.data.document.tck.entities.Book
 import io.micronaut.serde.Decoder
+import io.micronaut.serde.Deserializer
 import io.micronaut.serde.SerdeRegistry
+import io.micronaut.serde.Serializer
 import io.micronaut.serde.jackson.JacksonDecoder
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -78,10 +80,10 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
             CosmosDatabase database = client.getDatabase(databaseResponse.getProperties().getId())
 
             CosmosContainerProperties containerProperties =
-                    new CosmosContainerProperties("book", "/lastName");
+                    new CosmosContainerProperties("book", "/id");
 
             // Provision throughput
-            ThroughputProperties throughputProperties = ThroughputProperties.createManualThroughput(400);
+            ThroughputProperties throughputProperties = null;// ThroughputProperties.createManualThroughput(400);
 
             CosmosContainerResponse containerResponse = database.createContainerIfNotExists(containerProperties, throughputProperties);
             CosmosContainer container = database.getContainer(containerResponse.getProperties().getId());
@@ -93,7 +95,7 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
             def encoderContext = registry.newEncoderContext(Object)
             def type = Argument.of(XBook)
 
-            def item = container.createItem(result, PartitionKey.NONE, new CosmosItemRequestOptions())
+            def item = container.createItem(book, new PartitionKey(book.id.toString()), new CosmosItemRequestOptions())
             System.out.println("XXX " + item.getStatusCode())
 
             CosmosPagedIterable<ObjectNode> filteredFamilies = container.queryItems("SELECT * FROM c", new CosmosQueryRequestOptions(), ObjectNode.class);
@@ -106,6 +108,9 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
                     parser.nextToken()
                 }
                 final Decoder decoder = JacksonDecoder.create(parser, Object);
+                Deserializer.DecoderContext decoderContext = registry.newDecoderContext(null);
+                Deserializer<XBook> typeDeserializer = registry.findDeserializer(type);
+                Deserializer<XBook> deserializer = typeDeserializer.createSpecific(decoderContext, type);
 
                 XBook des = deserializer.deserialize(
                         decoder,

@@ -41,4 +41,11 @@ public class CosmoClientFactory {
     CosmosAsyncClient buildCosmosAsyncClient(CosmoClientConfiguration configuration) {
         return configuration.getCosmosClientBuilder().buildAsyncClient();
     }
+
+    @Bean
+    @Requires(beans = CosmoClientConfiguration.class)
+    ThroughputConfiguration throughputConfiguration(CosmoClientConfiguration configuration) {
+        return configuration.getThroughputConfiguration();
+    }
+
 }

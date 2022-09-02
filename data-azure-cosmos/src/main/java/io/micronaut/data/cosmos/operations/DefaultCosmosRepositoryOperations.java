@@ -23,6 +23,8 @@ import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.convert.ConversionContext;
 import io.micronaut.core.type.Argument;
+import io.micronaut.data.cosmos.config.CosmoClientConfiguration;
+import io.micronaut.data.cosmos.config.ThroughputConfiguration;
 import io.micronaut.data.exceptions.DataAccessException;
 import io.micronaut.data.exceptions.NonUniqueResultException;
 import io.micronaut.data.model.Page;
@@ -76,10 +78,14 @@ import java.util.stream.Stream;
 @Internal
 final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperations implements CosmosRepositoryOperations,
     PreparedQueryDecorator, MethodContextAwareStoredQueryDecorator {
+
     private static final Logger QUERY_LOG = DataSettings.QUERY_LOG;
+
     private final CosmosClient cosmosClient;
     private final SerdeRegistry serdeRegistry;
     private final ObjectMapper objectMapper;
+    private final CosmosDatabase database;
+    private final ThroughputProperties throughputProperties;
 
     /**
      * Default constructor.
@@ -92,6 +98,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
      * @param cosmosClient
      * @param serdeRegistry
      * @param objectMapper
+     * @param configuration
      */
     protected DefaultCosmosRepositoryOperations(List<MediaTypeCodec> codecs,
                                                 DateTimeProvider<Object> dateTimeProvider,
@@ -100,19 +107,45 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                                                 AttributeConverterRegistry attributeConverterRegistry,
                                                 CosmosClient cosmosClient,
                                                 SerdeRegistry serdeRegistry,
-                                                ObjectMapper objectMapper) {
+                                                ObjectMapper objectMapper,
+                                                CosmoClientConfiguration configuration) {
         super(codecs, dateTimeProvider, runtimeEntityRegistry, conversionService, attributeConverterRegistry);
         this.cosmosClient = cosmosClient;
         this.serdeRegistry = serdeRegistry;
         this.objectMapper = objectMapper;
+        this.database = initDatabase(configuration);
+        this.throughputProperties = createThroughputProperties(configuration);
     }
 
+    private CosmosDatabase initDatabase(CosmoClientConfiguration configuration) {
+        CosmosDatabaseResponse databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getDatabaseName());
+        return cosmosClient.getDatabase(databaseResponse.getProperties().getId());
+    }
+
+    private ThroughputProperties createThroughputProperties(CosmoClientConfiguration configuration) {
+        ThroughputConfiguration throughputConfiguration = configuration.getThroughputConfiguration();
+        if (throughputConfiguration.isUseThroughput()) {
+            if (throughputConfiguration.isManual()) {
+                return ThroughputProperties.createManualThroughput(throughputConfiguration.getThroghput());
+            } else {
+                return ThroughputProperties.createAutoscaledThroughput(throughputConfiguration.getThroghput());
+            }
+        }
+        return null;
+    }
 
     @Override
     public <T> T findOne(Class<T> type, Serializable id) {
         RuntimePersistentEntity<T> persistentEntity = runtimeEntityRegistry.getEntity(type);
         CosmosContainer container = getContainer(persistentEntity);
-        CosmosItemResponse<ObjectNode> response = container.readItem(id.toString(), PartitionKey.NONE, new CosmosItemRequestOptions(), ObjectNode.class);
+        PartitionKey partitionKey;
+        RuntimePersistentProperty identity = persistentEntity.getIdentity();
+        if (identity != null) {
+            partitionKey = new PartitionKey(id);
+        } else {
+            partitionKey = PartitionKey.NONE;
+        }
+        CosmosItemResponse<ObjectNode> response = container.readItem(id.toString(), partitionKey, new CosmosItemRequestOptions(), ObjectNode.class);
         return deserializeFromTree(response.getItem(), Argument.of(type));
     }
 
@@ -178,14 +211,22 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     public <T> T persist(InsertOperation<T> operation) {
         CosmosContainer container = getContainer(operation);
         T entity = operation.getEntity();
+        RuntimePersistentEntity persistentEntity = runtimeEntityRegistry.getEntity(entity.getClass());
         ObjectNode tree = serializeToTree(entity, Argument.of(operation.getRootEntity()));
-        container.createItem(tree, PartitionKey.NONE, new CosmosItemRequestOptions());
+        PartitionKey partitionKey;
+        RuntimePersistentProperty identity = persistentEntity.getIdentity();
+        if (identity != null) {
+            // TODO: Check for null?
+            partitionKey = new PartitionKey(tree.get(identity.getName()).asText());
+        } else {
+            partitionKey = PartitionKey.NONE;
+        }
+        container.createItem(tree, partitionKey, new CosmosItemRequestOptions());
         return entity;
     }
 
     private <T> CosmosContainer getContainer(InsertOperation<T> operation) {
         RuntimePersistentEntity<T> persistentEntity = runtimeEntityRegistry.getEntity(operation.getRootEntity());
-        CosmosDatabase database = getDatabase();
         CosmosContainer container = getContainer(database, persistentEntity);
         return container;
     }
@@ -269,7 +310,6 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     }
 
     private <T> CosmosContainer getContainer(RuntimePersistentEntity<T> persistentEntity) {
-        CosmosDatabase database = getDatabase();
         return getContainer(database, persistentEntity);
     }
 
@@ -285,22 +325,23 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         return new DefaultSqlStoredQuery<>(storedQuery, runtimePersistentEntity, queryBuilder);
     }
 
-    private CosmosDatabase getDatabase() {
-        // TODO We might want to call just create an run some init before it
-        // TODO support default from the configuration and from the repository annotation
-        CosmosDatabaseResponse databaseResponse = cosmosClient.createDatabaseIfNotExists("mydb");
-        return cosmosClient.getDatabase(databaseResponse.getProperties().getId());
-        // TODO Maybe cache?
-    }
-
     private CosmosContainer getContainer(CosmosDatabase cosmosDatabase, RuntimePersistentEntity<?> persistentEntity) {
+        String partitionName;
+        RuntimePersistentProperty identity = persistentEntity.getIdentity();
+        if (identity != null) {
+            partitionName = "/" + identity.getName();
+        } else {
+            partitionName = "/identity";
+        }
         CosmosContainerProperties containerProperties =
-            new CosmosContainerProperties(persistentEntity.getPersistedName(), "/lastName");
-        // TODO partition key path and other configs
-        ThroughputProperties throughputProperties = ThroughputProperties.createManualThroughput(400);
+            new CosmosContainerProperties(persistentEntity.getPersistedName(), partitionName);
 
-        // TODO We might want to call just create an run some init before it
-        CosmosContainerResponse containerResponse = cosmosDatabase.createContainerIfNotExists(containerProperties, throughputProperties);
+        CosmosContainerResponse containerResponse;
+        if (throughputProperties == null) {
+            containerResponse = cosmosDatabase.createContainerIfNotExists(containerProperties);
+        } else {
+            containerResponse = cosmosDatabase.createContainerIfNotExists(containerProperties, throughputProperties);
+        }
         return cosmosDatabase.getContainer(containerResponse.getProperties().getId());
     }
 
@@ -354,4 +395,5 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         }
         throw new IllegalStateException("Expected for prepared query to be of type: SqlStoredQuery got: " + storedQuery.getClass().getName());
     }
+
 }

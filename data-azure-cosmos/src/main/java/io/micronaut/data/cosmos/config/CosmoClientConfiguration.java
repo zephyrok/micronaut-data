@@ -37,6 +37,16 @@ public class CosmoClientConfiguration {
 
     private boolean defaultGatewayMode;
 
+    private boolean endpointDiscoveryEnabled;
+
+    private boolean useThroughput;
+
+    private boolean manualThroughput;
+
+    private int throughputRate;
+
+    private String databaseName;
+
     public CosmosClientBuilder getCosmosClientBuilder() {
         return cosmosClientBuilder;
     }
@@ -46,8 +56,42 @@ public class CosmoClientConfiguration {
     }
 
     public void setDefaultGatewayMode(boolean defaultGatewayMode) {
+        this.defaultGatewayMode = defaultGatewayMode;
         if (defaultGatewayMode) {
             cosmosClientBuilder.gatewayMode();
         }
+    }
+
+    public boolean isEndpointDiscoveryEnabled() {
+        return endpointDiscoveryEnabled;
+    }
+
+    public void setEndpointDiscoveryEnabled(boolean endpointDiscoveryEnabled) {
+        this.endpointDiscoveryEnabled = endpointDiscoveryEnabled;
+        this.cosmosClientBuilder.endpointDiscoveryEnabled(endpointDiscoveryEnabled);
+    }
+
+    public void setUseThroughput(boolean useThroughput) {
+        this.useThroughput = useThroughput;
+    }
+
+    public void setManualThroughput(boolean manualThroughput) {
+        this.manualThroughput = manualThroughput;
+    }
+
+    public void setThroughputRate(int throughputRate) {
+        this.throughputRate = throughputRate;
+    }
+
+    public ThroughputConfiguration getThroughputConfiguration() {
+        return new ThroughputConfiguration(useThroughput, manualThroughput, throughputRate);
+    }
+
+    public String getDatabaseName() {
+        return databaseName;
+    }
+
+    public void setDatabaseName(String databaseName) {
+        this.databaseName = databaseName;
     }
 }
