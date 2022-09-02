@@ -321,9 +321,17 @@ public abstract class AbstractSqlLikeQueryBuilder implements QueryBuilder {
             return Long.toString(((Number) value).longValue());
         }
         if (value instanceof Boolean) {
-            return value.toString().toUpperCase(Locale.ROOT);
+            String strVal = value.toString();
+            if (shouldMakeBooleanLiteralUppercase()) {
+                strVal = strVal.toUpperCase(Locale.ROOT);
+            }
+            return strVal;
         }
         return "'" + value + "'";
+    }
+
+    protected boolean shouldMakeBooleanLiteralUppercase() {
+        return true;
     }
 
     private <T extends QueryModel.PropertyCriterion> CriterionHandler<T> likeConcatComparison(String... parts) {

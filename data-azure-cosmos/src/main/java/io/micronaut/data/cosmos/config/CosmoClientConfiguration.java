@@ -28,7 +28,7 @@ import static io.micronaut.data.cosmos.config.CosmoClientConfiguration.PREFIX;
  * @since TODO
  */
 @ConfigurationProperties(PREFIX)
-public class CosmoClientConfiguration {
+public final class CosmoClientConfiguration {
 
     public static final String PREFIX = "azure.cosmos";
 

@@ -15,22 +15,15 @@
  */
 package io.micronaut.data.cosmos.operations;
 
-import io.micronaut.core.type.Argument;
-import io.micronaut.data.document.serde.IdSerializer;
-import io.micronaut.serde.Serializer;
-import io.micronaut.serde.exceptions.SerdeException;
-import io.micronaut.serde.util.CustomizableSerializer;
-import jakarta.inject.Singleton;
+import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
 
 /**
- * Default {@link IdSerializer} implementation.
+ * Extension of {@link SqlQueryBuilder} with some Azure Cosmos DB specifics.
  */
-@Singleton
-final class DefaultIdSerializer implements IdSerializer, CustomizableSerializer<Object> {
+public class CosmosSqlQueryBuilder extends SqlQueryBuilder {
 
     @Override
-    public Serializer<Object> createSpecific(EncoderContext context, Argument<?> type) throws SerdeException {
-        Serializer<? super Object> serializer = context.findSerializer(type);
-        return serializer.createSpecific(context, type);
+    protected boolean shouldMakeBooleanLiteralUppercase() {
+        return false;
     }
 }
