@@ -43,6 +43,7 @@ import io.micronaut.data.cosmos.config.ThroughputConfiguration;
 import io.micronaut.data.exceptions.DataAccessException;
 import io.micronaut.data.exceptions.NonUniqueResultException;
 import io.micronaut.data.model.Page;
+import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
 import io.micronaut.data.model.runtime.AttributeConverterRegistry;
 import io.micronaut.data.model.runtime.DeleteBatchOperation;
 import io.micronaut.data.model.runtime.DeleteOperation;
@@ -350,7 +351,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
 
     @Override
     public <E, R> StoredQuery<E, R> decorate(MethodInvocationContext<?, ?> context, StoredQuery<E, R> storedQuery) {
-        CosmosSqlQueryBuilder queryBuilder = new CosmosSqlQueryBuilder();
+        SqlQueryBuilder queryBuilder = new SqlQueryBuilder();
         RuntimePersistentEntity<E> runtimePersistentEntity = runtimeEntityRegistry.getEntity(storedQuery.getRootEntity());
         return new DefaultSqlStoredQuery<>(storedQuery, runtimePersistentEntity, queryBuilder);
     }
