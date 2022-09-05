@@ -11,19 +11,18 @@ import com.azure.cosmos.models.CosmosQueryRequestOptions
 import com.azure.cosmos.models.PartitionKey
 import com.azure.cosmos.models.ThroughputProperties
 import com.azure.cosmos.util.CosmosPagedIterable
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.micronaut.context.ApplicationContext
 import io.micronaut.core.type.Argument
-import io.micronaut.data.document.mongodb.repositories.CosmosBookDtoRepository
-import io.micronaut.data.document.mongodb.repositories.CosmosBookRepository
+import io.micronaut.data.azure.entities.CosmosBook
+import io.micronaut.data.azure.repositories.CosmosBookDtoRepository
+import io.micronaut.data.azure.repositories.CosmosBookRepository
 import io.micronaut.data.document.tck.entities.Book
 import io.micronaut.data.document.tck.repositories.BookDtoRepository
 import io.micronaut.data.document.tck.repositories.BookRepository
 import io.micronaut.serde.Decoder
 import io.micronaut.serde.Deserializer
 import io.micronaut.serde.SerdeRegistry
-import io.micronaut.serde.Serializer
 import io.micronaut.serde.jackson.JacksonDecoder
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -35,13 +34,13 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
     @Shared
     ApplicationContext context = ApplicationContext.run(properties)
 
-    BookRepository bookRepository = context.getBean(CosmosBookRepository)
+    CosmosBookRepository bookRepository = context.getBean(CosmosBookRepository)
 
     BookDtoRepository bookDtoRepository = context.getBean(CosmosBookDtoRepository)
 
     def "test find by id"() {
         given:
-            Book book = new Book()
+            CosmosBook book = new CosmosBook()
             book.id = UUID.randomUUID().toString()
             book.title = "The Stand"
             book.totalPages = 1000
@@ -66,11 +65,11 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
 
     def "test find with query"() {
         given:
-            Book book1 = new Book()
+            CosmosBook book1 = new CosmosBook()
             book1.id = UUID.randomUUID().toString()
             book1.title = "The Stand"
             book1.totalPages = 1000
-            Book book2 = new Book()
+            CosmosBook book2 = new CosmosBook()
             book2.id = UUID.randomUUID().toString()
             book2.title = "Ice And Fire"
             book2.totalPages = 200
@@ -94,7 +93,7 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
 
     def "test DTO entity retrieval"() {
         given:
-            Book book = new Book()
+            CosmosBook book = new CosmosBook()
             book.id = UUID.randomUUID().toString()
             book.title = "New Book"
             book.totalPages = 500
