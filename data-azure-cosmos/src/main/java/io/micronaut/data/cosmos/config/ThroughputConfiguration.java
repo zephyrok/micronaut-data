@@ -20,25 +20,19 @@ package io.micronaut.data.cosmos.config;
  */
 public final class ThroughputConfiguration {
 
-    private final boolean useThroughput;
-    private final boolean manual;
-    private final int throghput;
+    private final Integer throghputRate;
+    private final boolean autoScale;
 
-    ThroughputConfiguration(boolean useThroughput, boolean manual, int throghput) {
-        this.manual = manual;
-        this.throghput = throghput;
-        this.useThroughput = useThroughput;
+    ThroughputConfiguration(Integer throghputRate, boolean autoScale) {
+        this.throghputRate = throghputRate;
+        this.autoScale = autoScale;
     }
 
-    public boolean isUseThroughput() {
-        return useThroughput;
+    public Integer getThroghputRate() {
+        return throghputRate;
     }
 
-    public boolean isManual() {
-        return manual;
-    }
-
-    public int getThroghput() {
-        return throghput;
+    public boolean isAutoScale() {
+        return autoScale;
     }
 }

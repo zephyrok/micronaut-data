@@ -140,17 +140,22 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     }
 
     private CosmosDatabase initDatabase(CosmoClientConfiguration configuration) {
-        CosmosDatabaseResponse databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getDatabaseName());
+        CosmosDatabaseResponse databaseResponse;
+        if (throughputProperties == null) {
+            databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getDatabaseName());
+        } else {
+            databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getDatabaseName(), throughputProperties);
+        }
         return cosmosClient.getDatabase(databaseResponse.getProperties().getId());
     }
 
     private ThroughputProperties createThroughputProperties(CosmoClientConfiguration configuration) {
         ThroughputConfiguration throughputConfiguration = configuration.getThroughputConfiguration();
-        if (throughputConfiguration.isUseThroughput()) {
-            if (throughputConfiguration.isManual()) {
-                return ThroughputProperties.createManualThroughput(throughputConfiguration.getThroghput());
+        if (throughputConfiguration.getThroghputRate() != null) {
+            if (throughputConfiguration.isAutoScale()) {
+                return ThroughputProperties.createAutoscaledThroughput(throughputConfiguration.getThroghputRate());
             } else {
-                return ThroughputProperties.createAutoscaledThroughput(throughputConfiguration.getThroghput());
+                return ThroughputProperties.createManualThroughput(throughputConfiguration.getThroghputRate());
             }
         }
         return null;

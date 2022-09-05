@@ -29,9 +29,8 @@ trait AzureCosmosTestProperties implements TestPropertyProvider {
                 'azure.cosmos.endpoint-discovery-enabled': 'false',
                 'azure.cosmos.endpoint'                  : emulator.getEmulatorEndpoint(),
                 'azure.cosmos.key'                       : emulator.getEmulatorKey(),
-                'azure.cosmos.use-throughput'            : 'true',
-                'azure.cosmos.manual-throughput'         : 'false',
                 'azure.cosmos.throughput-rate'           : '1000',
+                'azure.cosmos.throughput-auto-scale'     : 'true',
                 'azure.cosmos.database-name'             : 'mydb'
         ]
     }

@@ -39,11 +39,9 @@ public final class CosmoClientConfiguration {
 
     private boolean endpointDiscoveryEnabled;
 
-    private boolean useThroughput;
+    private Integer throughputRate;
 
-    private boolean manualThroughput;
-
-    private int throughputRate;
+    private boolean throughputAutoScale;
 
     private String databaseName;
 
@@ -71,20 +69,20 @@ public final class CosmoClientConfiguration {
         this.cosmosClientBuilder.endpointDiscoveryEnabled(endpointDiscoveryEnabled);
     }
 
-    public void setUseThroughput(boolean useThroughput) {
-        this.useThroughput = useThroughput;
-    }
-
-    public void setManualThroughput(boolean manualThroughput) {
-        this.manualThroughput = manualThroughput;
-    }
-
     public void setThroughputRate(int throughputRate) {
         this.throughputRate = throughputRate;
     }
 
+    public boolean isThroughputAutoScale() {
+        return throughputAutoScale;
+    }
+
+    public void setThroughputAutoScale(boolean throughputAutoScale) {
+        this.throughputAutoScale = throughputAutoScale;
+    }
+
     public ThroughputConfiguration getThroughputConfiguration() {
-        return new ThroughputConfiguration(useThroughput, manualThroughput, throughputRate);
+        return new ThroughputConfiguration(throughputRate, throughputAutoScale);
     }
 
     public String getDatabaseName() {
