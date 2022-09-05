@@ -45,7 +45,6 @@ import java.util.Map;
  * @author Denis Stepanov
  * @since 3.5.0
  */
-@Internal
 public final class DefaultSqlPreparedQuery<E, R> implements SqlPreparedQuery<E, R>, DelegatePreparedQuery<E, R> {
 
     private final PreparedQuery<E, R> preparedQuery;

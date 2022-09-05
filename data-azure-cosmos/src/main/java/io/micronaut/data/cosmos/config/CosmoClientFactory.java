@@ -28,7 +28,7 @@ import io.micronaut.context.annotation.Requires;
  * @since TODO
  */
 @Factory
-public class CosmoClientFactory {
+public final class CosmoClientFactory {
 
     @Bean(preDestroy = "close")
     @Requires(beans = CosmoClientConfiguration.class)

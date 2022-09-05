@@ -15,8 +15,11 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ObjectNode
 import io.micronaut.context.ApplicationContext
 import io.micronaut.core.type.Argument
+import io.micronaut.data.document.mongodb.repositories.CosmosBookDtoRepository
 import io.micronaut.data.document.mongodb.repositories.CosmosBookRepository
 import io.micronaut.data.document.tck.entities.Book
+import io.micronaut.data.document.tck.repositories.BookDtoRepository
+import io.micronaut.data.document.tck.repositories.BookRepository
 import io.micronaut.serde.Decoder
 import io.micronaut.serde.Deserializer
 import io.micronaut.serde.SerdeRegistry
@@ -32,18 +35,25 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
     @Shared
     ApplicationContext context = ApplicationContext.run(properties)
 
+    BookRepository bookRepository = context.getBean(CosmosBookRepository)
+
+    BookDtoRepository bookDtoRepository = context.getBean(CosmosBookDtoRepository)
+
     def "test find by id"() {
         given:
-            def bookRepository = context.getBean(CosmosBookRepository)
             Book book = new Book()
             book.id = UUID.randomUUID().toString()
             book.title = "The Stand"
             book.totalPages = 1000
         when:
             bookRepository.save(book)
-            def optionalBook = bookRepository.queryById(book.id)
+            def loadedBook = bookRepository.queryById(book.id)
         then:
-            optionalBook
+            loadedBook
+        when:
+            loadedBook = bookRepository.queryById(UUID.randomUUID().toString())
+        then:
+            !loadedBook
         when:
             def exists = bookRepository.existsById(book.id)
         then:
@@ -56,7 +66,6 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
 
     def "test find with query"() {
         given:
-            def bookRepository = context.getBean(CosmosBookRepository)
             Book book1 = new Book()
             book1.id = UUID.randomUUID().toString()
             book1.title = "The Stand"
@@ -77,12 +86,35 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
         then:
             foundBook
             foundBook.title == "Ice And Fire"
+        when:
+            optionalBook = bookRepository.findById(UUID.randomUUID().toString())
+        then:
+            !optionalBook
+    }
+
+    def "test DTO entity retrieval"() {
+        given:
+            Book book = new Book()
+            book.id = UUID.randomUUID().toString()
+            book.title = "New Book"
+            book.totalPages = 500
+        when:
+            bookRepository.save(book)
+            def loadedBook = bookRepository.queryById(book.id)
+        then:
+            loadedBook
+        when:
+            def bookDto = bookDtoRepository.findById(book.id)
+        then:
+            bookDto.present
+            bookDto.get().title == book.title
+            // Not loaded due to NamingStrategy. Need to fix
+            !bookDto.get().totalPages
     }
 
     def "should get cosmos client"() {
         when:
             SerdeRegistry registry = context.getBean(SerdeRegistry)
-            ObjectMapper jacksonMapper = context.getBean(ObjectMapper)
             CosmosClient client = context.getBean(CosmosClient)
             CosmosDatabaseResponse databaseResponse = client.createDatabaseIfNotExists("mydb")
             CosmosDatabase database = client.getDatabase(databaseResponse.getProperties().getId())
@@ -91,7 +123,7 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
                     new CosmosContainerProperties("book", "/id");
 
             // Provision throughput
-            ThroughputProperties throughputProperties = null;// ThroughputProperties.createManualThroughput(400);
+            ThroughputProperties throughputProperties = ThroughputProperties.createManualThroughput(400);
 
             CosmosContainerResponse containerResponse = database.createContainerIfNotExists(containerProperties, throughputProperties);
             CosmosContainer container = database.getContainer(containerResponse.getProperties().getId());

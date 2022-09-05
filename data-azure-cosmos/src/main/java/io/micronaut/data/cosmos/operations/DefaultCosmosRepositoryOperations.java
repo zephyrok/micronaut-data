@@ -18,6 +18,7 @@ package io.micronaut.data.cosmos.operations;
 import com.azure.cosmos.CosmosClient;
 import com.azure.cosmos.CosmosContainer;
 import com.azure.cosmos.CosmosDatabase;
+import com.azure.cosmos.CosmosException;
 import com.azure.cosmos.models.CosmosContainerProperties;
 import com.azure.cosmos.models.CosmosContainerResponse;
 import com.azure.cosmos.models.CosmosDatabaseResponse;
@@ -37,6 +38,7 @@ import io.micronaut.context.annotation.Requires;
 import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.convert.ConversionContext;
+import io.micronaut.core.reflect.ReflectionUtils;
 import io.micronaut.core.type.Argument;
 import io.micronaut.data.cosmos.config.CosmoClientConfiguration;
 import io.micronaut.data.cosmos.config.ThroughputConfiguration;
@@ -96,6 +98,8 @@ import java.util.stream.Stream;
 @Internal
 final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperations implements CosmosRepositoryOperations,
     PreparedQueryDecorator, MethodContextAwareStoredQueryDecorator {
+
+    private static final int NOT_FOUND_STATUS_CODE = 404;
 
     private static final Logger QUERY_LOG = DataSettings.QUERY_LOG;
 
@@ -163,8 +167,15 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         } else {
             partitionKey = PartitionKey.NONE;
         }
-        CosmosItemResponse<ObjectNode> response = container.readItem(id.toString(), partitionKey, new CosmosItemRequestOptions(), ObjectNode.class);
-        return deserializeFromTree(response.getItem(), Argument.of(type));
+        try {
+            CosmosItemResponse<ObjectNode> response = container.readItem(id.toString(), partitionKey, new CosmosItemRequestOptions(), ObjectNode.class);
+            return deserializeFromTree(response.getItem(), Argument.of(type));
+        } catch (CosmosException e) {
+            if (e.getStatusCode() == NOT_FOUND_STATUS_CODE) {
+                return null;
+            }
+            throw e;
+        }
     }
 
     @Override
@@ -173,10 +184,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         CosmosContainer container = getContainer(persistentEntity);
         List<SqlParameter> paramList = bindParameters(preparedQuery);
         SqlQuerySpec querySpec = new SqlQuerySpec(preparedQuery.getQuery(), paramList);
-        if (QUERY_LOG.isDebugEnabled()) {
-            QUERY_LOG.debug("Executing query: {}", querySpec.getQueryText());
-            // TODO: log params
-        }
+        logQuery(querySpec, paramList);
         CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, new CosmosQueryRequestOptions(), ObjectNode.class);
         Iterator<ObjectNode> iterator = result.iterator();
         if (iterator.hasNext()) {
@@ -184,8 +192,12 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
             if (iterator.hasNext()) {
                 throw new NonUniqueResultException();
             }
-            // TODO: DTOs etc
-            return deserializeFromTree(beanTree, Argument.of((Class<R>) preparedQuery.getRootEntity()));
+            if (preparedQuery.isDtoProjection()) {
+                Class<R> wrapperType = ReflectionUtils.getWrapperType(preparedQuery.getResultType());
+                return deserializeFromTree(beanTree, Argument.of(wrapperType));
+            } else {
+                return deserializeFromTree(beanTree, Argument.of((Class<R>) preparedQuery.getRootEntity()));
+            }
         }
         return null;
     }
@@ -196,10 +208,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         CosmosContainer container = getContainer(persistentEntity);
         List<SqlParameter> paramList = bindParameters(preparedQuery);
         SqlQuerySpec querySpec = new SqlQuerySpec(preparedQuery.getQuery(), paramList);
-        if (QUERY_LOG.isDebugEnabled()) {
-            QUERY_LOG.debug("Executing query: {}", querySpec.getQueryText());
-            // TODO: log params
-        }
+        logQuery(querySpec, paramList);
         CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, new CosmosQueryRequestOptions(), ObjectNode.class);
         Iterator<ObjectNode> iterator = result.iterator();
         if (iterator.hasNext()) {
@@ -247,7 +256,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         PartitionKey partitionKey;
         RuntimePersistentProperty identity = persistentEntity.getIdentity();
         if (identity != null) {
-            // TODO: Check for null?
+            // TODO: Can tree.get below return null?
             partitionKey = new PartitionKey(tree.get(identity.getName()).asText());
         } else {
             partitionKey = PartitionKey.NONE;
@@ -427,4 +436,12 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         throw new IllegalStateException("Expected for prepared query to be of type: SqlStoredQuery got: " + storedQuery.getClass().getName());
     }
 
+    private void logQuery(SqlQuerySpec querySpec, Iterable<SqlParameter> params) {
+        if (QUERY_LOG.isDebugEnabled()) {
+            QUERY_LOG.debug("Executing query: {}", querySpec.getQueryText());
+            for (SqlParameter param : params) {
+                QUERY_LOG.debug("Parameter: name={}, value={}", param.getName(), param.getValue(Object.class));
+            }
+        }
+    }
 }

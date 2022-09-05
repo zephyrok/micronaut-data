@@ -42,6 +42,7 @@ public abstract class BookRepository implements PageableRepository<Book, String>
         this.authorRepository = authorRepository;
     }
 
+    @Nullable
     public abstract Book queryById(String id);
 
     @Join("author")
