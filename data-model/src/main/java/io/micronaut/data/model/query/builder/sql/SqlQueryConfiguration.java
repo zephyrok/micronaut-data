@@ -62,10 +62,5 @@ public @interface SqlQueryConfiguration {
          * @return Whether automatically escape queries.
          */
         boolean escapeQueries() default true;
-
-        /**
-         * @return whether boolean literals should be converted to uppercase in SQL queries
-         */
-        boolean booleanAsLiteralUppercase() default true;
     }
 }

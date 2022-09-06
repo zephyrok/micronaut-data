@@ -1,6 +1,7 @@
 package io.micronaut.data.azure.repositories;
 
 import io.micronaut.core.annotation.Nullable;
+import io.micronaut.data.annotation.Query;
 import io.micronaut.data.azure.entities.CosmosBook;
 import io.micronaut.data.cosmos.annotation.CosmosRepository;
 import io.micronaut.data.document.tck.entities.Book;
@@ -13,4 +14,6 @@ public abstract class CosmosBookRepository implements PageableRepository<CosmosB
 
     @Nullable
     public abstract CosmosBook queryById(String id);
+
+    public abstract CosmosBook searchByTitle(String title);
 }

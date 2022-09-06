@@ -36,7 +36,7 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
 
     CosmosBookRepository bookRepository = context.getBean(CosmosBookRepository)
 
-    BookDtoRepository bookDtoRepository = context.getBean(CosmosBookDtoRepository)
+    CosmosBookDtoRepository bookDtoRepository = context.getBean(CosmosBookDtoRepository)
 
     def "test find by id"() {
         given:

@@ -141,8 +141,7 @@ public class SqlQueryBuilder extends AbstractSqlLikeQueryBuilder implements Quer
                         );
                         dialectConfig.booleanValue("escapeQueries").ifPresent(escape ->
                                 dc.escapeQueries = escape
-                        );
-                        dialectConfig.booleanValue("booleanAsLiteralUppercase").ifPresent(booleanAsLiteralUppercase -> dc.booleanAsLiteralUppercase = booleanAsLiteralUppercase);
+                        );                        
                     });
 
                 }
@@ -188,10 +187,7 @@ public class SqlQueryBuilder extends AbstractSqlLikeQueryBuilder implements Quer
     protected String asLiteral(Object value) {
         if ((dialect == Dialect.SQL_SERVER || dialect == Dialect.ORACLE) && value instanceof Boolean) {
             return ((Boolean) value).booleanValue() ? "1" : "0";
-        }
-        if (value instanceof Boolean && !booleanAsLiteralUppercase()) {
-            return value.toString();
-        }
+        }        
         return super.asLiteral(value);
     }
 
@@ -2034,16 +2030,7 @@ public class SqlQueryBuilder extends AbstractSqlLikeQueryBuilder implements Quer
             return dialectConfig.escapeQueries;
         }
         return true;
-    }
-
-    @Override
-    public boolean booleanAsLiteralUppercase() {
-        DialectConfig dialectConfig = perDialectConfig.get(dialect);
-        if (dialectConfig != null && dialectConfig.booleanAsLiteralUppercase != null) {
-            return dialectConfig.booleanAsLiteralUppercase;
-        }
-        return true;
-    }
+    }    
 
     @Override
     public Class<? extends Annotation> annotationType() {
@@ -2053,8 +2040,7 @@ public class SqlQueryBuilder extends AbstractSqlLikeQueryBuilder implements Quer
     private static class DialectConfig {
         Boolean escapeQueries;
         String positionalFormatter;
-        String positionalNameFormatter;
-        Boolean booleanAsLiteralUppercase;
+        String positionalNameFormatter;        
     }
 
     private static class IndexConfiguration {
