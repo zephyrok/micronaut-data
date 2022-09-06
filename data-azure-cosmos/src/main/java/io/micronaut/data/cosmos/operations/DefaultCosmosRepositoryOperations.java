@@ -30,6 +30,7 @@ import com.azure.cosmos.models.SqlQuerySpec;
 import com.azure.cosmos.models.ThroughputProperties;
 import com.azure.cosmos.util.CosmosPagedIterable;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.micronaut.aop.MethodInvocationContext;
@@ -42,6 +43,7 @@ import io.micronaut.core.beans.BeanIntrospector;
 import io.micronaut.core.convert.ConversionContext;
 import io.micronaut.core.reflect.ReflectionUtils;
 import io.micronaut.core.type.Argument;
+import io.micronaut.core.util.ArgumentUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.cosmos.annotation.CosmosEntity;
@@ -77,7 +79,6 @@ import io.micronaut.data.runtime.query.MethodContextAwareStoredQueryDecorator;
 import io.micronaut.data.runtime.query.PreparedQueryDecorator;
 import io.micronaut.http.codec.MediaTypeCodec;
 import io.micronaut.jackson.core.tree.JsonNodeTreeCodec;
-import io.micronaut.json.tree.JsonNode;
 import io.micronaut.serde.Decoder;
 import io.micronaut.serde.Deserializer;
 import io.micronaut.serde.SerdeRegistry;
@@ -198,6 +199,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     }
 
     private ThroughputProperties createThroughputProperties(CosmoClientConfiguration configuration) {
+        // Throughput properties for the database
         ThroughputConfiguration throughputConfiguration = configuration.getThroughputConfiguration();
         if (throughputConfiguration.getThroghputRate() != null) {
             if (throughputConfiguration.isAutoScale()) {
@@ -311,14 +313,14 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         T entity = operation.getEntity();
         RuntimePersistentEntity persistentEntity = runtimeEntityRegistry.getEntity(entity.getClass());
         ObjectNode tree = serializeToTree(entity, Argument.of(operation.getRootEntity()));
-        PartitionKey partitionKey;
+        PartitionKey partitionKey = PartitionKey.NONE;
         CosmosEntityProperties props = cosmosEntityProperties.get(persistentEntity);
-        String partitionKeyPath = props.getPartitionKeyPath();
+        String partitionKeyPath = props != null ? props.getPartitionKeyPath() : null;
         if (StringUtils.isNotEmpty(partitionKeyPath)) {
-            // TODO: Can tree.get below return null?
-            partitionKey = new PartitionKey(tree.get(partitionKeyPath).asText());
-        } else {
-            partitionKey = PartitionKey.NONE;
+            JsonNode partitionKeyObjValue = tree.get(partitionKeyPath);
+            if (partitionKeyObjValue != null) {
+                partitionKey = new PartitionKey(partitionKeyObjValue.asText());
+            }
         }
         container.createItem(tree, partitionKey, new CosmosItemRequestOptions());
         return entity;
@@ -415,11 +417,15 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     }
 
     private void createContainer(CosmosDatabase cosmosDatabase, PersistentEntity persistentEntity) {
+        String containerName = persistentEntity.getPersistedName();
         CosmosEntityProperties props = cosmosEntityProperties.get(persistentEntity);
-        String partitionName = getPartitionName(props);
+        if (props != null) {
+            containerName = props.getName();
+        }
+        String partitionKey = getPartitionKey(props);
         CosmosContainerProperties containerProperties =
-            new CosmosContainerProperties(props.getName(), partitionName);
-        ThroughputProperties throughputProperties = props.getThroughputProperties();
+            new CosmosContainerProperties(containerName, partitionKey);
+        ThroughputProperties throughputProperties = props != null ? props.getThroughputProperties() : null;
         if (throughputProperties == null) {
             cosmosDatabase.createContainerIfNotExists(containerProperties);
         } else {
@@ -436,14 +442,17 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     private <T> CosmosContainer getContainer(RuntimePersistentEntity<T> persistentEntity) {
         return getContainer(database, persistentEntity);
     }
-    
+
     private CosmosContainer getContainer(CosmosDatabase cosmosDatabase, RuntimePersistentEntity<?> persistentEntity) {
+        String containerName = persistentEntity.getPersistedName();
         CosmosEntityProperties props = cosmosEntityProperties.get(persistentEntity);
-        // TODO: What if props is null?
-        String partitionName = getPartitionName(props);
+        if (props != null) {
+            containerName = props.getName();
+        }
+        String partitionKey = getPartitionKey(props);
         CosmosContainerProperties containerProperties =
-            new CosmosContainerProperties(persistentEntity.getPersistedName(), partitionName);
-        ThroughputProperties throughputProperties = props.getThroughputProperties();
+            new CosmosContainerProperties(containerName, partitionKey);
+        ThroughputProperties throughputProperties = props == null ? null : props.getThroughputProperties();
         CosmosContainerResponse containerResponse;
         if (throughputProperties == null) {
             containerResponse = cosmosDatabase.createContainerIfNotExists(containerProperties);
@@ -453,14 +462,11 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         return cosmosDatabase.getContainer(containerResponse.getProperties().getId());
     }
 
-    private String getPartitionName(CosmosEntityProperties props) {
-        String partitionName;
-        if (StringUtils.isNotEmpty(props.getPartitionKeyPath())) {
-            partitionName = "/" + props.getPartitionKeyPath();
-        } else {
-            partitionName = "/null";
+    private String getPartitionKey(CosmosEntityProperties props) {
+        if (props != null && StringUtils.isNotEmpty(props.getPartitionKeyPath())) {
+            return "/" + props.getPartitionKeyPath();
         }
-        return  partitionName;
+        return "/null";
     }
 
     private ObjectNode serializeToTree(Object bean, Argument<?> type) {
@@ -471,7 +477,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
             JsonNodeEncoder encoder = JsonNodeEncoder.create();
             serializer.serialize(encoder, encoderContext, type, bean);
             // First serialize to Micronaut Serde tree model and then convert it to Jackson's tree model
-            JsonNode jsonNode = encoder.getCompletedValue();
+            io.micronaut.json.tree.JsonNode jsonNode = encoder.getCompletedValue();
             try (JsonParser jsonParser = JsonNodeTreeCodec.getInstance().treeAsTokens(jsonNode)) {
                 return objectMapper.readTree(jsonParser);
             }
@@ -524,10 +530,16 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     }
 
     public static String getStringIdValue(Object idValue) {
-        // TODO: Null check
+        ArgumentUtils.requireNonNull("idValue", idValue);
         if (idValue instanceof String) {
-            // TODO: Blank check
-            return (String) idValue;
+            String strValue = idValue.toString();
+            ArgumentUtils.check("idValue", new ArgumentUtils.Check() {
+                @Override
+                public boolean condition() {
+                    return StringUtils.isNotEmpty(strValue);
+                }
+            });
+            return strValue;
         } else if (idValue instanceof Integer) {
             return Integer.toString((Integer) idValue);
         } else if (idValue instanceof Long) {
