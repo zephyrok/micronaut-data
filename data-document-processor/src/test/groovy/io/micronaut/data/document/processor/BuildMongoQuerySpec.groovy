@@ -360,25 +360,4 @@ interface MyInterface2 extends GenericRepository<Book, String> {
             update == '{$set:{name: \"tom\"}}'
             collation == '{ locale: \'en_US\', numericOrdering: true}'
     }
-
-    void "test cosmos repo"() {
-        given:
-        def repository = buildRepository('test.CosmosBookRepository', """
-import io.micronaut.data.cosmos.annotation.CosmosRepository;
-import io.micronaut.data.document.tck.entities.Book;
-
-@CosmosRepository
-interface CosmosBookRepository extends GenericRepository<Book, String> {
-
-    boolean existsById(String id);
-
-}
-"""
-        )
-
-        when:
-        String q = TestUtils.getQuery(repository.getRequiredMethod("existsById", String))
-        then:
-        q == "SELECT true FROM io.micronaut.data.document.tck.entities.Book AS book_ WHERE (book_.id = :p1)"
-    }
 }

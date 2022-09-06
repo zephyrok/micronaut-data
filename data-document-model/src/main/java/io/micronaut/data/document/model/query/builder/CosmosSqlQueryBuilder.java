@@ -15,6 +15,8 @@
  */
 package io.micronaut.data.document.model.query.builder;
 
+import io.micronaut.core.annotation.AnnotationMetadata;
+import io.micronaut.core.annotation.Creator;
 import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
 
 /**
@@ -23,6 +25,17 @@ import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
  * @since TODO
  */
 public final class CosmosSqlQueryBuilder extends SqlQueryBuilder {
+
+    @Creator
+    public CosmosSqlQueryBuilder(AnnotationMetadata annotationMetadata) {
+        super(annotationMetadata);
+    }
+
+    /**
+     * Default constructor.
+     */
+    public CosmosSqlQueryBuilder() {
+        super(); }
 
     @Override
     protected String asLiteral(Object value) {
