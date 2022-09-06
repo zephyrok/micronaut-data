@@ -41,6 +41,7 @@ import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.beans.BeanIntrospection;
 import io.micronaut.core.beans.BeanIntrospector;
 import io.micronaut.core.convert.ConversionContext;
+import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.reflect.ReflectionUtils;
 import io.micronaut.core.type.Argument;
 import io.micronaut.core.util.ArgumentUtils;
@@ -51,6 +52,7 @@ import io.micronaut.data.cosmos.config.CosmoClientConfiguration;
 import io.micronaut.data.cosmos.config.ThroughputConfiguration;
 import io.micronaut.data.exceptions.DataAccessException;
 import io.micronaut.data.exceptions.NonUniqueResultException;
+import io.micronaut.data.model.DataType;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.PersistentEntity;
 import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
@@ -90,16 +92,24 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Spliterator;
+import java.util.Spliterators;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Consumer;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * The default Azure Cosmos DB operations implementation.
@@ -289,12 +299,96 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
 
     @Override
     public <T, R> Iterable<R> findAll(PreparedQuery<T, R> preparedQuery) {
-        return null;
+        try (Stream<R> stream = findStream(preparedQuery)) {
+            return stream.collect(Collectors.toList());
+        }
     }
 
     @Override
     public <T, R> Stream<R> findStream(PreparedQuery<T, R> preparedQuery) {
-        return null;
+        AtomicBoolean finished = new AtomicBoolean();
+        RuntimePersistentEntity<T> persistentEntity = runtimeEntityRegistry.getEntity(preparedQuery.getRootEntity());
+        Class<R> resultType = preparedQuery.getResultType();
+        CosmosContainer container = getContainer(persistentEntity);
+        List<SqlParameter> paramList = bindParameters(preparedQuery);
+        SqlQuerySpec querySpec = new SqlQuerySpec(preparedQuery.getQuery(), paramList);
+        logQuery(querySpec, paramList);
+        try {
+            Spliterator<R> spliterator;
+            boolean dtoProjection = preparedQuery.isDtoProjection();
+            boolean isEntity = preparedQuery.getResultDataType() == DataType.ENTITY;
+            if (isEntity || dtoProjection) {
+                Argument<R> argument;
+                if (dtoProjection) {
+                    argument = Argument.of(ReflectionUtils.getWrapperType(preparedQuery.getResultType()));
+                } else {
+                    argument = Argument.of((Class<R>) preparedQuery.getRootEntity());
+                }
+                CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, new CosmosQueryRequestOptions(), ObjectNode.class);
+                Iterator<ObjectNode> iterator = result.iterator();
+                spliterator = new Spliterators.AbstractSpliterator<R>(Long.MAX_VALUE,
+                    Spliterator.ORDERED | Spliterator.IMMUTABLE) {
+                    @Override
+                    public boolean tryAdvance(Consumer<? super R> action) {
+                        if (finished.get()) {
+                            return false;
+                        }
+                        boolean hasNext = iterator.hasNext();
+                        if (hasNext) {
+                            ObjectNode beanTree = iterator.next();
+                            R o;
+                            if (dtoProjection) {
+                                o = deserializeFromTree(beanTree, argument);
+                            } else {
+                                o = deserializeFromTree(beanTree, argument);
+                            }
+                            action.accept(o);
+                        } else {
+                            finished.set(true);
+                        }
+                        return hasNext;
+                    }
+                };
+            } else {
+                DataType dataType = preparedQuery.getResultDataType();
+                CosmosPagedIterable<?> result = container.queryItems(querySpec, new CosmosQueryRequestOptions(), getDataTypeClass(dataType));
+                Iterator<?> iterator = result.iterator();
+                spliterator = new Spliterators.AbstractSpliterator<R>(Long.MAX_VALUE,
+                    Spliterator.ORDERED | Spliterator.IMMUTABLE) {
+                    @Override
+                    public boolean tryAdvance(Consumer<? super R> action) {
+                        if (finished.get()) {
+                            return false;
+                        }
+                        try {
+                            boolean hasNext = iterator.hasNext();
+                            if (hasNext) {
+                                Object v = iterator.next();
+                                if (resultType.isInstance(v)) {
+                                    //noinspection unchecked
+                                    action.accept((R) v);
+                                } else if (v != null) {
+                                    Object r = ConversionService.SHARED.convertRequired(v, resultType);
+                                    if (r != null) {
+                                        action.accept((R) r);
+                                    }
+                                }
+                            } else {
+                                finished.set(true);
+                            }
+                            return hasNext;
+                        } catch (Exception e) {
+                            throw new DataAccessException("Error retrieving next Cosmos result: " + e.getMessage(), e);
+                        }
+                    }
+                };
+            }
+            return StreamSupport.stream(spliterator, false).onClose(() -> {
+                finished.set(true);
+            });
+        } catch (Exception e) {
+            throw new DataAccessException("Cosmos SQL Error executing Query: " + e.getMessage(), e);
+        }
     }
 
     @Override
@@ -548,6 +642,43 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
             return idValue.toString();
         } else {
             throw new IllegalArgumentException("Type of id field must be String or Integer or Long or UUID");
+        }
+    }
+
+    Class<?> getDataTypeClass(DataType dataType) {
+        switch (dataType) {
+            case STRING:
+            case JSON:
+                return String.class;
+            case UUID:
+                return UUID.class;
+            case LONG:
+                return Long.class;
+            case INTEGER:
+                return Integer.class;
+            case BOOLEAN:
+                return Boolean.class;
+            case BYTE:
+                return Byte.class;
+            case TIMESTAMP:
+                return Date.class;
+            case DATE:
+                return Date.class;
+            case CHARACTER:
+                return Character.class;
+            case FLOAT:
+                return Float.class;
+            case SHORT:
+                return Short.class;
+            case DOUBLE:
+                return Double.class;
+            case BYTE_ARRAY:
+                return byte[].class;
+            case BIGDECIMAL:
+                return BigDecimal.class;
+            case OBJECT:
+            default:
+                return Object.class;
         }
     }
 }

@@ -61,6 +61,10 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
             exists = bookRepository.existsById(UUID.randomUUID().toString())
         then:
             !exists
+        when:
+            def cnt = bookRepository.count()
+        then:
+            cnt >= 0
     }
 
     def "test find with query"() {

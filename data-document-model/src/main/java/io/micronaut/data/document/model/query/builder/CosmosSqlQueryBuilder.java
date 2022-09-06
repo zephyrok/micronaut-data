@@ -26,6 +26,8 @@ import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
  */
 public final class CosmosSqlQueryBuilder extends SqlQueryBuilder {
 
+    private static final String SELECT_COUNT = "VALUE COUNT(1)";
+
     @Creator
     public CosmosSqlQueryBuilder(AnnotationMetadata annotationMetadata) {
         super(annotationMetadata);
@@ -43,5 +45,10 @@ public final class CosmosSqlQueryBuilder extends SqlQueryBuilder {
             return value.toString();
         }
         return super.asLiteral(value);
+    }
+
+    @Override
+    protected void appendProjectionRowCount(StringBuilder queryString, String logicalName) {
+        queryString.append(SELECT_COUNT);
     }
 }
