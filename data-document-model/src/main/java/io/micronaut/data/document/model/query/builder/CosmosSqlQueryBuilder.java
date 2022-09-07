@@ -17,6 +17,9 @@ package io.micronaut.data.document.model.query.builder;
 
 import io.micronaut.core.annotation.AnnotationMetadata;
 import io.micronaut.core.annotation.Creator;
+import io.micronaut.data.model.PersistentEntity;
+import io.micronaut.data.model.naming.NamingStrategies;
+import io.micronaut.data.model.naming.NamingStrategy;
 import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
 
 /**
@@ -50,5 +53,15 @@ public final class CosmosSqlQueryBuilder extends SqlQueryBuilder {
     @Override
     protected void appendProjectionRowCount(StringBuilder queryString, String logicalName) {
         queryString.append(SELECT_COUNT);
+    }
+
+    @Override
+    protected NamingStrategy getNamingStrategy(PersistentEntity entity) {
+        return entity.findNamingStrategy().orElseGet(NamingStrategies.Raw::new); // Make a constant?
+    }
+
+    @Override
+    protected NamingStrategy getNamingStrategy(QueryPropertyPath propertyPath) {
+        return propertyPath.findNamingStrategy().orElseGet(NamingStrategies.Raw::new);
     }
 }
