@@ -48,7 +48,7 @@ import io.micronaut.core.util.ArgumentUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.cosmos.annotation.CosmosEntity;
-import io.micronaut.data.cosmos.config.CosmoClientConfiguration;
+import io.micronaut.data.cosmos.config.CosmosDatabaseConfiguration;
 import io.micronaut.data.cosmos.config.ThroughputConfiguration;
 import io.micronaut.data.exceptions.DataAccessException;
 import io.micronaut.data.exceptions.NonUniqueResultException;
@@ -154,7 +154,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                                                 CosmosClient cosmosClient,
                                                 SerdeRegistry serdeRegistry,
                                                 ObjectMapper objectMapper,
-                                                CosmoClientConfiguration configuration) {
+                                                CosmosDatabaseConfiguration configuration) {
         super(codecs, dateTimeProvider, runtimeEntityRegistry, conversionService, attributeConverterRegistry);
         this.cosmosClient = cosmosClient;
         this.serdeRegistry = serdeRegistry;
@@ -163,12 +163,12 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         this.throughputProperties = createThroughputProperties(configuration);
     }
 
-    private CosmosDatabase initDatabase(CosmoClientConfiguration configuration) {
+    private CosmosDatabase initDatabase(CosmosDatabaseConfiguration configuration) {
         CosmosDatabaseResponse databaseResponse;
         if (throughputProperties == null) {
-            databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getDatabaseName());
+            databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getName());
         } else {
-            databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getDatabaseName(), throughputProperties);
+            databaseResponse = cosmosClient.createDatabaseIfNotExists(configuration.getName(), throughputProperties);
         }
         CosmosDatabase cosmosDatabase = cosmosClient.getDatabase(databaseResponse.getProperties().getId());
         initContainers(cosmosDatabase);
@@ -208,7 +208,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         }
     }
 
-    private ThroughputProperties createThroughputProperties(CosmoClientConfiguration configuration) {
+    private ThroughputProperties createThroughputProperties(CosmosDatabaseConfiguration configuration) {
         // Throughput properties for the database
         ThroughputConfiguration throughputConfiguration = configuration.getThroughputConfiguration();
         if (throughputConfiguration.getThroghputRate() != null) {

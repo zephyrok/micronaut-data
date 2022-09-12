@@ -25,13 +25,13 @@ trait AzureCosmosTestProperties implements TestPropertyProvider {
         System.setProperty("javax.net.ssl.trustStoreType", "PKCS12")
 
         return [
-                'azure.cosmos.default-gateway-mode'      : 'true',
-                'azure.cosmos.endpoint-discovery-enabled': 'false',
-                'azure.cosmos.endpoint'                  : emulator.getEmulatorEndpoint(),
-                'azure.cosmos.key'                       : emulator.getEmulatorKey(),
-                'azure.cosmos.throughput-rate'           : '1000',
-                'azure.cosmos.throughput-auto-scale'     : 'true',
-                'azure.cosmos.database-name'             : 'mydb'
+                'azure.cosmos.default-gateway-mode'               : 'true',
+                'azure.cosmos.endpoint-discovery-enabled'         : 'false',
+                'azure.cosmos.endpoint'                           : emulator.getEmulatorEndpoint(),
+                'azure.cosmos.key'                                : emulator.getEmulatorKey(),
+                'azure.cosmos.database.throughput-rate'           : '1000',
+                'azure.cosmos.database.throughput-auto-scale'     : 'true',
+                'azure.cosmos.database.database-name'             : 'mydb'
         ]
     }
 }

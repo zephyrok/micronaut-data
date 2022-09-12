@@ -19,55 +19,24 @@ import com.azure.cosmos.CosmosClientBuilder;
 import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 
-import static io.micronaut.data.cosmos.config.CosmoClientConfiguration.PREFIX;
+import static io.micronaut.data.cosmos.config.CosmosDatabaseConfiguration.PREFIX;
 
 /**
- * The default Azure Cosmo configuration class.
+ * The default Azure Cosmos database class.
  *
- * @author Denis Stepanov
+ * @author radovanradic
  * @since TODO
  */
 @ConfigurationProperties(PREFIX)
-public final class CosmoClientConfiguration {
+public final class CosmosDatabaseConfiguration {
 
-    public static final String PREFIX = "azure.cosmos";
-
-    @ConfigurationBuilder(prefixes = "")
-    protected CosmosClientBuilder cosmosClientBuilder = new CosmosClientBuilder();
-
-    private boolean defaultGatewayMode;
-
-    private boolean endpointDiscoveryEnabled;
+    public static final String PREFIX = "azure.cosmos.database";
 
     private Integer throughputRate;
 
     private boolean throughputAutoScale;
 
-    private String databaseName;
-
-    public CosmosClientBuilder getCosmosClientBuilder() {
-        return cosmosClientBuilder;
-    }
-
-    public boolean isDefaultGatewayMode() {
-        return defaultGatewayMode;
-    }
-
-    public void setDefaultGatewayMode(boolean defaultGatewayMode) {
-        this.defaultGatewayMode = defaultGatewayMode;
-        if (defaultGatewayMode) {
-            cosmosClientBuilder.gatewayMode();
-        }
-    }
-
-    public boolean isEndpointDiscoveryEnabled() {
-        return endpointDiscoveryEnabled;
-    }
-
-    public void setEndpointDiscoveryEnabled(boolean endpointDiscoveryEnabled) {
-        this.endpointDiscoveryEnabled = endpointDiscoveryEnabled;
-        this.cosmosClientBuilder.endpointDiscoveryEnabled(endpointDiscoveryEnabled);
-    }
+    private String name;
 
     public void setThroughputRate(int throughputRate) {
         this.throughputRate = throughputRate;
@@ -85,11 +54,11 @@ public final class CosmoClientConfiguration {
         return new ThroughputConfiguration(throughputRate, throughputAutoScale);
     }
 
-    public String getDatabaseName() {
-        return databaseName;
+    public String getName() {
+        return name;
     }
 
-    public void setDatabaseName(String databaseName) {
-        this.databaseName = databaseName;
+    public void setName(String name) {
+        this.name = name;
     }
 }

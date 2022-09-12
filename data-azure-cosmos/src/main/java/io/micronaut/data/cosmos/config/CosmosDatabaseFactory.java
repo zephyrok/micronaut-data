@@ -15,36 +15,22 @@
  */
 package io.micronaut.data.cosmos.config;
 
-import com.azure.cosmos.CosmosAsyncClient;
-import com.azure.cosmos.CosmosClient;
 import io.micronaut.context.annotation.Bean;
 import io.micronaut.context.annotation.Factory;
 import io.micronaut.context.annotation.Requires;
 
 /**
- * The Azure Cosmo Client factory.
+ * The Azure Cosmo Database factory.
  *
- * @author Denis Stepanov
+ * @author radovanradic
  * @since TODO
  */
 @Factory
-public final class CosmoClientFactory {
-
-    @Bean(preDestroy = "close")
-    @Requires(beans = CosmoClientConfiguration.class)
-    CosmosClient buildCosmosClient(CosmoClientConfiguration configuration) {
-        return configuration.getCosmosClientBuilder().buildClient();
-    }
-
-    @Bean(preDestroy = "close")
-    @Requires(beans = CosmoClientConfiguration.class)
-    CosmosAsyncClient buildCosmosAsyncClient(CosmoClientConfiguration configuration) {
-        return configuration.getCosmosClientBuilder().buildAsyncClient();
-    }
+public final class CosmosDatabaseFactory {
 
     @Bean
-    @Requires(beans = CosmoClientConfiguration.class)
-    ThroughputConfiguration throughputConfiguration(CosmoClientConfiguration configuration) {
+    @Requires(beans = CosmosDatabaseConfiguration.class)
+    ThroughputConfiguration throughputConfiguration(CosmosDatabaseConfiguration configuration) {
         return configuration.getThroughputConfiguration();
     }
 
