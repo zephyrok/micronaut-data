@@ -17,9 +17,6 @@ import io.micronaut.core.type.Argument
 import io.micronaut.data.azure.entities.CosmosBook
 import io.micronaut.data.azure.repositories.CosmosBookDtoRepository
 import io.micronaut.data.azure.repositories.CosmosBookRepository
-import io.micronaut.data.document.tck.entities.Book
-import io.micronaut.data.document.tck.repositories.BookDtoRepository
-import io.micronaut.data.document.tck.repositories.BookRepository
 import io.micronaut.serde.Decoder
 import io.micronaut.serde.Deserializer
 import io.micronaut.serde.SerdeRegistry

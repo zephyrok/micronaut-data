@@ -22,7 +22,6 @@ dependencies {
     api libs.micronaut.serde.jackson
     api libs.micronaut.serde.support
     api libs.micronaut.azure.cosmos
-    //api libs.azure.cosmos
 
     compileOnly libs.micronaut.reactor
 

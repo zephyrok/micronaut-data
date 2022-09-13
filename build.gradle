@@ -7,11 +7,6 @@ plugins {
 micronautBuild {
     sourceCompatibility = "11"
 }
-subprojects {
-    repositories {
-        mavenLocal()
-    }
-}
 
 if (System.getenv("SONAR_TOKEN") != null) {
     sonarqube {
