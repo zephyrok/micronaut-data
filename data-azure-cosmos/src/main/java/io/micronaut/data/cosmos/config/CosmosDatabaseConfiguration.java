@@ -15,8 +15,6 @@
  */
 package io.micronaut.data.cosmos.config;
 
-import com.azure.cosmos.CosmosClientBuilder;
-import io.micronaut.context.annotation.ConfigurationBuilder;
 import io.micronaut.context.annotation.ConfigurationProperties;
 
 import static io.micronaut.data.cosmos.config.CosmosDatabaseConfiguration.PREFIX;
