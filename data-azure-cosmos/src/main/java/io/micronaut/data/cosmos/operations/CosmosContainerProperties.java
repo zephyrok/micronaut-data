@@ -18,28 +18,44 @@ package io.micronaut.data.cosmos.operations;
 import com.azure.cosmos.models.ThroughputProperties;
 
 /**
- * The model containing values read from {@link io.micronaut.data.annotation.CosmosEntity}.
+ * The model containing values read from {@link Container}.
  */
-public final class CosmosEntityProperties {
+public final class CosmosContainerProperties {
 
-    private final String name;
+    private final String containerName;
     private final String partitionKeyPath;
     private final ThroughputProperties throughputProperties;
 
-    public CosmosEntityProperties(String name, String partitionKeyPath, ThroughputProperties throughputProperties) {
-        this.name = name;
+    /**
+     * Creates an instance of {@link CosmosContainerProperties}.
+     *
+     * @param containerName the container name
+     * @param partitionKeyPath the partition key path, may be blank
+     * @param throughputProperties the throughput properties for the container, can be null and then not used on the container
+     */
+    public CosmosContainerProperties(String containerName, String partitionKeyPath, ThroughputProperties throughputProperties) {
+        this.containerName = containerName;
         this.partitionKeyPath = partitionKeyPath;
         this.throughputProperties = throughputProperties;
     }
 
-    public String getName() {
-        return name;
+    /**
+     * @return the container name
+     */
+    public String getContainerName() {
+        return containerName;
     }
 
+    /**
+     * @return the partition key path for the container, can be empty
+     */
     public String getPartitionKeyPath() {
         return partitionKeyPath;
     }
 
+    /**
+     * @return the container throughput properties, can be null
+     */
     public ThroughputProperties getThroughputProperties() {
         return throughputProperties;
     }
