@@ -38,6 +38,8 @@ import io.micronaut.core.annotation.Internal;
 import io.micronaut.core.annotation.Nullable;
 import io.micronaut.core.beans.BeanIntrospection;
 import io.micronaut.core.beans.BeanIntrospector;
+import io.micronaut.core.beans.BeanProperty;
+import io.micronaut.core.beans.BeanWrapper;
 import io.micronaut.core.convert.ConversionContext;
 import io.micronaut.core.convert.ConversionService;
 import io.micronaut.core.reflect.ReflectionUtils;
@@ -382,6 +384,21 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         CosmosContainer container = getContainer(operation);
         T entity = operation.getEntity();
         RuntimePersistentEntity persistentEntity = runtimeEntityRegistry.getEntity(entity.getClass());
+        RuntimePersistentProperty identity = persistentEntity.getIdentity();
+        if (identity != null && identity.isGenerated()) {
+            BeanWrapper beanWrapper = BeanWrapper.getWrapper(entity);
+            BeanProperty<T, Object> property = (BeanProperty<T, Object>) identity.getProperty();
+            Object idValue = beanWrapper.getProperty(identity.getName(), identity.getType());
+            if (idValue == null || idValue == Optional.empty()) {
+                if (property.getType().isAssignableFrom(String.class)) {
+                    beanWrapper.setProperty(identity.getName(), UUID.randomUUID().toString());
+                } else if (property.getType().isAssignableFrom(UUID.class)) {
+                    beanWrapper.setProperty(identity.getName(), UUID.randomUUID());
+                } else {
+                    QUERY_LOG.warn("Unexpected identity type for auto generate value " + property.getType());
+                }
+            }
+        }
         ObjectNode tree = serializeToTree(entity, Argument.of(operation.getRootEntity()));
         PartitionKey partitionKey = PartitionKey.NONE;
         CosmosContainerProperties props = CosmosContainerProperties.getInstance(persistentEntity);

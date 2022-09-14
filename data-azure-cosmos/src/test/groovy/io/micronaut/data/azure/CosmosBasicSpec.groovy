@@ -38,7 +38,7 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
     def "test find by id"() {
         given:
             CosmosBook book = new CosmosBook()
-            book.id = UUID.randomUUID().toString()
+            // id will be auto generated
             book.title = "The Stand"
             book.totalPages = 1000
         when:
