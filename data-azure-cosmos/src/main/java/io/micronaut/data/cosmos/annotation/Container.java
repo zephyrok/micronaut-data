@@ -22,30 +22,38 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Used to declare Cosmos Azure DB specific properties for mapped entity.
+ * Used to declare Cosmos Azure DB specific properties for the container.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.ANNOTATION_TYPE, ElementType.TYPE})
 @Documented
-public @interface CosmosEntity {
+public @interface Container {
 
     /**
+     * @return the container name
+     */
+    String name() default "";
+
+    /**
+     * Used to set partition key path for the container. If {@link PartitionKey} is declared on any field it will have higher priority and will be used
+     * as partition key for the container.
+     *
      * @return the partition key path
      */
-    String partitionKeyPath() default  "";
+    String partitionKeyPath() default "";
 
     /**
-     * @return throughput rate for the entity (container). If less or equal to 0 then not used
+     * @return throughput request units for the entity (container). If less or equal to 0 then not used
      */
-    int throughputRate() default 0;
+    int throughputRequestUnits() default 0;
 
     /**
-     * @return an indicator telling whether throughput is autoscale for the entity (container)
+     * @return an indicator telling whether throughput is auto-scaled for the entity (container)
      */
     boolean throughputAutoScale() default false;
 
     /**
      * @return an indicator telling whether container for the entity should be auto created during startup
      */
-    boolean autoCreateContainer() default false;
+    boolean autoCreate() default false;
 }

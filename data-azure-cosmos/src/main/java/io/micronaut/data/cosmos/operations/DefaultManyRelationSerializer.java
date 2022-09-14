@@ -29,6 +29,13 @@ import java.io.IOException;
 final class DefaultManyRelationSerializer implements ManyRelationSerializer {
     @Override
     public void serialize(Encoder encoder, EncoderContext context, Argument<?> type, Object value) throws IOException {
-        encoder.encodeNull();
+        if (value == null) {
+            encoder.encodeNull();
+        } else {
+            // TODO: Find the way to eliminate infinite loops when author->books and book->author
+            // Serializer serializer = context.findSerializer(type);
+            // serializer.createSpecific(context, type).serialize(encoder, context, type, value);
+            encoder.encodeNull();
+        }
     }
 }

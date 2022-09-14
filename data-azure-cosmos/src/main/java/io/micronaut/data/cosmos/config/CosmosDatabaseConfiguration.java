@@ -16,47 +16,73 @@
 package io.micronaut.data.cosmos.config;
 
 import io.micronaut.context.annotation.ConfigurationProperties;
+import io.micronaut.core.annotation.NonNull;
 
 import static io.micronaut.data.cosmos.config.CosmosDatabaseConfiguration.PREFIX;
 
 /**
- * The default Azure Cosmos database class.
+ * The Azure Cosmos database configuration.
  *
  * @author radovanradic
- * @since TODO
+ * @since 3.8.0
  */
 @ConfigurationProperties(PREFIX)
 public final class CosmosDatabaseConfiguration {
 
     public static final String PREFIX = "azure.cosmos.database";
 
-    private Integer throughputRate;
+    private Integer throughputRequestUnits;
 
     private boolean throughputAutoScale;
 
-    private String name;
+    private String databaseName;
 
-    public void setThroughputRate(int throughputRate) {
-        this.throughputRate = throughputRate;
+    /**
+     * @return throughput request units for the database
+     */
+    public Integer getThroughputRequestUnits() {
+        return throughputRequestUnits;
     }
 
+    /**
+     * Sets the throughput request units for the database.
+     *
+     * @param throughputRequestUnits the throughput request units for the database.
+     */
+    public void setThroughputRequestUnits(Integer throughputRequestUnits) {
+        this.throughputRequestUnits = throughputRequestUnits;
+    }
+
+    /**
+     * @return an indicator telling whether throughput is auto-scaled
+     */
     public boolean isThroughputAutoScale() {
         return throughputAutoScale;
     }
 
+    /**
+     * Sets an indicator telling whether throughput is auto-scaled.
+     *
+     * @param throughputAutoScale an indicator telling whether throughput is auto-scaled
+     */
     public void setThroughputAutoScale(boolean throughputAutoScale) {
         this.throughputAutoScale = throughputAutoScale;
     }
 
-    public ThroughputConfiguration getThroughputConfiguration() {
-        return new ThroughputConfiguration(throughputRate, throughputAutoScale);
+    /**
+     * @return the database name
+     */
+    @NonNull
+    public String getDatabaseName() {
+        return databaseName;
     }
 
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
+    /**
+     * Sets the database name.
+     *
+     * @param databaseName the database name
+     */
+    public void setDatabaseName(String databaseName) {
+        this.databaseName = databaseName;
     }
 }

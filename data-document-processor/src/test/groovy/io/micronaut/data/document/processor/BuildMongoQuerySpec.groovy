@@ -360,4 +360,5 @@ interface MyInterface2 extends GenericRepository<Book, String> {
             update == '{$set:{name: \"tom\"}}'
             collation == '{ locale: \'en_US\', numericOrdering: true}'
     }
+    
 }
