@@ -13,9 +13,9 @@ import io.micronaut.data.annotation.event.PostUpdate;
 import io.micronaut.data.annotation.event.PrePersist;
 import io.micronaut.data.annotation.event.PreRemove;
 import io.micronaut.data.annotation.event.PreUpdate;
-import io.micronaut.data.cosmos.annotation.CosmosEntity;
+import io.micronaut.data.cosmos.annotation.Container;
+import io.micronaut.data.cosmos.annotation.PartitionKey;
 import io.micronaut.data.document.tck.entities.Author;
-import io.micronaut.data.document.tck.entities.Book;
 import io.micronaut.data.document.tck.entities.Page;
 import io.micronaut.data.document.tck.entities.Publisher;
 
@@ -23,11 +23,12 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-@CosmosEntity(throughputRate = 1000, partitionKeyPath = "title", autoCreateContainer = true, throughputAutoScale = true)
+@Container(throughputRequestUnits = 1000, throughputAutoScale = true, partitionKeyPath = "title", autoCreate = true)
 @MappedEntity
 public class CosmosBook {
     @Id
     @GeneratedValue
+    @PartitionKey
     private String id;
     private String title;
     private int totalPages;
