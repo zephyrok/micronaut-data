@@ -51,6 +51,10 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
         then:
             !loadedBook
         when:
+            def optBook = bookRepository.queryById(book.id, new PartitionKey(book.id))
+        then:
+            optBook.present
+        when:
             def exists = bookRepository.existsById(book.id)
         then:
             exists

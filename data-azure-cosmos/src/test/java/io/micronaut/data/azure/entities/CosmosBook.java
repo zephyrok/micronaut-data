@@ -6,6 +6,7 @@ import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.Transient;
+import io.micronaut.data.annotation.Version;
 import io.micronaut.data.annotation.event.PostLoad;
 import io.micronaut.data.annotation.event.PostPersist;
 import io.micronaut.data.annotation.event.PostRemove;
@@ -32,6 +33,8 @@ public class CosmosBook {
     private String id;
     private String title;
     private int totalPages;
+    @Version
+    private String version;
 
     @Relation(Relation.Kind.MANY_TO_ONE)
     private Author author;
@@ -159,5 +162,13 @@ public class CosmosBook {
 
     public void setCreated(LocalDateTime created) {
         this.created = created;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
     }
 }

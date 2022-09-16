@@ -19,6 +19,7 @@ import com.azure.cosmos.models.ThroughputProperties;
 import io.micronaut.core.annotation.AnnotationValue;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.cosmos.annotation.Container;
+import io.micronaut.data.model.DataType;
 import io.micronaut.data.model.PersistentEntity;
 import io.micronaut.data.model.PersistentProperty;
 
@@ -114,6 +115,10 @@ public final class CosmosContainerProperties {
                 } else {
                     throughputProperties = ThroughputProperties.createManualThroughput(throughputRequestUnits);
                 }
+            }
+            PersistentProperty versionProperty = entity.getVersion();
+            if (versionProperty != null && !DataType.STRING.equals(versionProperty.getDataType())) {
+                throw new IllegalStateException("Version field in Cosmos Db must be string");
             }
             return new CosmosContainerProperties(containerName, partitionKeyPath, throughputProperties,
                 containerData.booleanValue("autoCreate").orElse(false));

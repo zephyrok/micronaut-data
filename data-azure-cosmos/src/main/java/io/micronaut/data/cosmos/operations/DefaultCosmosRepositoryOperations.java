@@ -48,12 +48,14 @@ import io.micronaut.core.util.ArgumentUtils;
 import io.micronaut.core.util.StringUtils;
 import io.micronaut.data.annotation.MappedEntity;
 import io.micronaut.data.cosmos.annotation.Container;
+import io.micronaut.data.cosmos.common.Constants;
 import io.micronaut.data.cosmos.config.CosmosDatabaseConfiguration;
 import io.micronaut.data.exceptions.DataAccessException;
 import io.micronaut.data.exceptions.NonUniqueResultException;
 import io.micronaut.data.model.DataType;
 import io.micronaut.data.model.Page;
 import io.micronaut.data.model.PersistentEntity;
+import io.micronaut.data.model.PersistentProperty;
 import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
 import io.micronaut.data.model.runtime.AttributeConverterRegistry;
 import io.micronaut.data.model.runtime.DeleteBatchOperation;
@@ -215,7 +217,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                 if (iterator.hasNext()) {
                     throw new NonUniqueResultException();
                 }
-                return deserializeFromTree(beanTree, Argument.of(type));
+                return deserializeFromTree(persistentEntity, beanTree, Argument.of(type));
             }
         } catch (CosmosException e) {
             if (e.getStatusCode() == NOT_FOUND_STATUS_CODE) {
@@ -233,7 +235,9 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         List<SqlParameter> paramList = bindParameters(preparedQuery);
         SqlQuerySpec querySpec = new SqlQuerySpec(preparedQuery.getQuery(), paramList);
         logQuery(querySpec, paramList);
-        CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, new CosmosQueryRequestOptions(), ObjectNode.class);
+        CosmosQueryRequestOptions requestOptions = new CosmosQueryRequestOptions();
+        preparedQuery.getParameterInRole(Constants.PARTITION_KEY_ROLE, PartitionKey.class).ifPresent(pk -> requestOptions.setPartitionKey(pk));
+        CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, requestOptions, ObjectNode.class);
         Iterator<ObjectNode> iterator = result.iterator();
         if (iterator.hasNext()) {
             ObjectNode beanTree = iterator.next();
@@ -242,9 +246,9 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
             }
             if (preparedQuery.isDtoProjection()) {
                 Class<R> wrapperType = ReflectionUtils.getWrapperType(preparedQuery.getResultType());
-                return deserializeFromTree(beanTree, Argument.of(wrapperType));
+                return deserializeFromTree(persistentEntity, beanTree, Argument.of(wrapperType));
             } else {
-                return deserializeFromTree(beanTree, Argument.of((Class<R>) preparedQuery.getRootEntity()));
+                return deserializeFromTree(persistentEntity, beanTree, Argument.of((Class<R>) preparedQuery.getRootEntity()));
             }
         }
         return null;
@@ -257,7 +261,9 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         List<SqlParameter> paramList = bindParameters(preparedQuery);
         SqlQuerySpec querySpec = new SqlQuerySpec(preparedQuery.getQuery(), paramList);
         logQuery(querySpec, paramList);
-        CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, new CosmosQueryRequestOptions(), ObjectNode.class);
+        CosmosQueryRequestOptions requestOptions = new CosmosQueryRequestOptions();
+        preparedQuery.getParameterInRole(Constants.PARTITION_KEY_ROLE, PartitionKey.class).ifPresent(pk -> requestOptions.setPartitionKey(pk));
+        CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, requestOptions, ObjectNode.class);
         Iterator<ObjectNode> iterator = result.iterator();
         if (iterator.hasNext()) {
             return true;
@@ -302,7 +308,9 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                 } else {
                     argument = Argument.of((Class<R>) preparedQuery.getRootEntity());
                 }
-                CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, new CosmosQueryRequestOptions(), ObjectNode.class);
+                CosmosQueryRequestOptions requestOptions = new CosmosQueryRequestOptions();
+                preparedQuery.getParameterInRole(Constants.PARTITION_KEY_ROLE, PartitionKey.class).ifPresent(pk -> requestOptions.setPartitionKey(pk));
+                CosmosPagedIterable<ObjectNode> result = container.queryItems(querySpec, requestOptions, ObjectNode.class);
                 Iterator<ObjectNode> iterator = result.iterator();
                 spliterator = new Spliterators.AbstractSpliterator<R>(Long.MAX_VALUE,
                     Spliterator.ORDERED | Spliterator.IMMUTABLE) {
@@ -316,9 +324,9 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                             ObjectNode beanTree = iterator.next();
                             R o;
                             if (dtoProjection) {
-                                o = deserializeFromTree(beanTree, argument);
+                                o = deserializeFromTree(persistentEntity, beanTree, argument);
                             } else {
-                                o = deserializeFromTree(beanTree, argument);
+                                o = deserializeFromTree(persistentEntity, beanTree, argument);
                             }
                             action.accept(o);
                         } else {
@@ -399,17 +407,20 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                 }
             }
         }
-        ObjectNode tree = serializeToTree(entity, Argument.of(operation.getRootEntity()));
+        ObjectNode tree = serializeToTree(persistentEntity, entity, Argument.of(operation.getRootEntity()));
         PartitionKey partitionKey = PartitionKey.NONE;
         CosmosContainerProperties props = CosmosContainerProperties.getInstance(persistentEntity);
         String partitionKeyPath = props != null ? props.getPartitionKeyPath() : null;
         if (StringUtils.isNotEmpty(partitionKeyPath)) {
+            // TODO: Paths can be nested like /obj/prop
             JsonNode partitionKeyObjValue = tree.get(partitionKeyPath);
             if (partitionKeyObjValue != null) {
                 partitionKey = new PartitionKey(partitionKeyObjValue.asText());
             }
         }
-        container.createItem(tree, partitionKey, new CosmosItemRequestOptions());
+        CosmosItemRequestOptions requestOptions = new CosmosItemRequestOptions();
+        applyVersioning(persistentEntity, entity, tree, requestOptions);
+        container.createItem(tree, partitionKey, requestOptions);
         return entity;
     }
 
@@ -556,28 +567,35 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         return "/null";
     }
 
-    private ObjectNode serializeToTree(Object bean, Argument<?> type) {
+    private ObjectNode serializeToTree(PersistentEntity entity, Object bean, Argument<?> type) {
         try {
             Serializer.EncoderContext encoderContext = serdeRegistry.newEncoderContext(null);
             Serializer<? super Object> typeSerializer = serdeRegistry.findSerializer(type);
             Serializer<Object> serializer = typeSerializer.createSpecific(encoderContext, type);
             JsonNodeEncoder encoder = JsonNodeEncoder.create();
+
             serializer.serialize(encoder, encoderContext, type, bean);
             // First serialize to Micronaut Serde tree model and then convert it to Jackson's tree model
             io.micronaut.json.tree.JsonNode jsonNode = encoder.getCompletedValue();
             try (JsonParser jsonParser = JsonNodeTreeCodec.getInstance().treeAsTokens(jsonNode)) {
-                return objectMapper.readTree(jsonParser);
+                ObjectNode cosmosObjectNode = objectMapper.readTree(jsonParser);
+                mapVersionFieldToEtag(entity, bean, cosmosObjectNode);
+                return cosmosObjectNode;
             }
         } catch (IOException e) {
             throw new DataAccessException("Failed to serialize: " + e.getMessage(), e);
         }
     }
 
-    private <T> T deserializeFromTree(ObjectNode objectNode, Argument<T> type) {
+    private <T> T deserializeFromTree(PersistentEntity entity, ObjectNode objectNode, Argument<T> type) {
         try {
             Deserializer.DecoderContext decoderContext = serdeRegistry.newDecoderContext(null);
             Deserializer<? extends T> typeDeserializer = serdeRegistry.findDeserializer(type);
             Deserializer<? extends T> deserializer = typeDeserializer.createSpecific(decoderContext, type);
+            final JsonNode etag = objectNode.get(Constants.ETAG_PROPERTY_DEFAULT_NAME);
+            if (etag != null) {
+                mapEtagToVersionField(entity, objectNode, etag);
+            }
             JsonParser parser = objectNode.traverse();
             if (!parser.hasCurrentToken()) {
                 parser.nextToken();
@@ -612,6 +630,40 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
             QUERY_LOG.debug("Executing query: {}", querySpec.getQueryText());
             for (SqlParameter param : params) {
                 QUERY_LOG.debug("Parameter: name={}, value={}", param.getName(), param.getValue(Object.class));
+            }
+        }
+    }
+
+    private <T> void applyVersioning(PersistentEntity entity,
+                                 Object bean,
+                                 JsonNode jsonNode,
+                                 CosmosItemRequestOptions options) {
+        PersistentProperty versionProperty = entity.getVersion();
+        if (versionProperty != null) {
+            BeanWrapper beanWrapper = BeanWrapper.getWrapper(bean);
+            Optional<String> versionValue = beanWrapper.getProperty(versionProperty.getName(), String.class);
+            versionValue.ifPresent(v -> options.setIfMatchETag(v));
+        }
+    }
+
+    private <R> void mapEtagToVersionField(PersistentEntity entity, ObjectNode objectNode, JsonNode etagValue) {
+        PersistentProperty versionProperty = entity.getVersion();
+        if (versionProperty != null) {
+            objectNode.set(versionProperty.getName(), etagValue);
+            if (!versionProperty.getName().equals(Constants.ETAG_PROPERTY_DEFAULT_NAME)) {
+                objectNode.remove(Constants.ETAG_PROPERTY_DEFAULT_NAME);
+            }
+        }
+    }
+
+    private <T> void mapVersionFieldToEtag(PersistentEntity entity, Object bean, ObjectNode cosmosObjectNode) {
+        PersistentProperty versionProperty = entity.getVersion();
+        if (versionProperty != null) {
+            if (!versionProperty.getName().equals(Constants.ETAG_PROPERTY_DEFAULT_NAME)) {
+                cosmosObjectNode.remove(versionProperty.getName());
+                BeanWrapper beanWrapper = BeanWrapper.getWrapper(bean);
+                Optional<String> versionValue = beanWrapper.getProperty(versionProperty.getName(), String.class);
+                versionValue.ifPresent(v -> cosmosObjectNode.put(Constants.ETAG_PROPERTY_DEFAULT_NAME, v));
             }
         }
     }
