@@ -35,7 +35,7 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
 
     CosmosBookDtoRepository bookDtoRepository = context.getBean(CosmosBookDtoRepository)
 
-    def "test find by id"() {
+    def "test entity operations"() {
         given:
             CosmosBook book = new CosmosBook()
             // id will be auto generated
@@ -46,6 +46,12 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
             def loadedBook = bookRepository.queryById(book.id)
         then:
             loadedBook
+        when:
+            book.title = "The Stand v1"
+            book = bookRepository.update(book)
+            loadedBook = bookRepository.queryById(book.id)
+        then:
+            loadedBook.title == "The Stand v1"
         when:
             loadedBook = bookRepository.queryById(UUID.randomUUID().toString())
         then:
@@ -66,6 +72,11 @@ class CosmosBasicSpec extends Specification implements AzureCosmosTestProperties
             def cnt = bookRepository.count()
         then:
             cnt >= 0
+        when:
+            bookRepository.delete(book)
+            loadedBook = bookRepository.queryById(book.id)
+        then:
+            !loadedBook
     }
 
     def "test find with query"() {

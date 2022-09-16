@@ -30,5 +30,20 @@ public final class Constants {
      */
     public static final String PARTITION_KEY_ROLE = "partitionKey";
 
+    /**
+     * No Content status code.
+     */
+    public static final int NO_CONTENT_STATUS_CODE = 204;
+
+    /**
+     * OK status code.
+     */
+    public static final int OK_STATUS_CODE = 200;
+
+    /**
+     * Not Found status code.
+     */
+    public static final int NOT_FOUND_STATUS_CODE = 404;
+
     private Constants() { }
 }

@@ -4,6 +4,7 @@ import io.micronaut.data.annotation.DateUpdated;
 import io.micronaut.data.annotation.GeneratedValue;
 import io.micronaut.data.annotation.Id;
 import io.micronaut.data.annotation.MappedEntity;
+import io.micronaut.data.annotation.MappedProperty;
 import io.micronaut.data.annotation.Relation;
 import io.micronaut.data.annotation.Transient;
 import io.micronaut.data.annotation.Version;
@@ -34,6 +35,7 @@ public class CosmosBook {
     private String title;
     private int totalPages;
     @Version
+    @MappedProperty(value = "_etag")
     private String version;
 
     @Relation(Relation.Kind.MANY_TO_ONE)

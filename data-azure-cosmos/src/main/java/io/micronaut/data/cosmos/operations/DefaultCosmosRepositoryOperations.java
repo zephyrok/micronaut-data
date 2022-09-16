@@ -22,6 +22,7 @@ import com.azure.cosmos.CosmosException;
 import com.azure.cosmos.models.CosmosContainerResponse;
 import com.azure.cosmos.models.CosmosDatabaseResponse;
 import com.azure.cosmos.models.CosmosItemRequestOptions;
+import com.azure.cosmos.models.CosmosItemResponse;
 import com.azure.cosmos.models.CosmosQueryRequestOptions;
 import com.azure.cosmos.models.PartitionKey;
 import com.azure.cosmos.models.SqlParameter;
@@ -119,7 +120,6 @@ import java.util.stream.StreamSupport;
 final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperations implements CosmosRepositoryOperations,
     PreparedQueryDecorator, MethodContextAwareStoredQueryDecorator {
 
-    private static final int NOT_FOUND_STATUS_CODE = 404;
     // This should return exact collection item by the id in given container
     private static final String FIND_ONE_DEFAULT_QUERY = "SELECT * FROM root WHERE root.id = @ROOT_ID";
 
@@ -220,7 +220,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                 return deserializeFromTree(persistentEntity, beanTree, Argument.of(type));
             }
         } catch (CosmosException e) {
-            if (e.getStatusCode() == NOT_FOUND_STATUS_CODE) {
+            if (e.getStatusCode() == Constants.NOT_FOUND_STATUS_CODE) {
                 return null;
             }
             throw e;
@@ -351,7 +351,6 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
                             if (hasNext) {
                                 Object v = iterator.next();
                                 if (resultType.isInstance(v)) {
-                                    //noinspection unchecked
                                     action.accept((R) v);
                                 } else if (v != null) {
                                     Object r = ConversionService.SHARED.convertRequired(v, resultType);
@@ -389,7 +388,6 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
 
     @Override
     public <T> T persist(InsertOperation<T> operation) {
-        CosmosContainer container = getContainer(operation);
         T entity = operation.getEntity();
         RuntimePersistentEntity persistentEntity = runtimeEntityRegistry.getEntity(entity.getClass());
         RuntimePersistentProperty identity = persistentEntity.getIdentity();
@@ -420,28 +418,52 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         }
         CosmosItemRequestOptions requestOptions = new CosmosItemRequestOptions();
         applyVersioning(persistentEntity, entity, tree, requestOptions);
+        CosmosContainer container = getContainer(persistentEntity);
         container.createItem(tree, partitionKey, requestOptions);
         return entity;
     }
 
     @Override
     public <T> T update(UpdateOperation<T> operation) {
-        return null;
+        T entity = operation.getEntity();
+        RuntimePersistentEntity persistentEntity = runtimeEntityRegistry.getEntity(entity.getClass());
+        ObjectNode tree = serializeToTree(persistentEntity, entity, Argument.of(operation.getRootEntity()));
+        CosmosItemRequestOptions requestOptions = new CosmosItemRequestOptions();
+        applyVersioning(persistentEntity, entity, tree, requestOptions);
+        CosmosContainer container = getContainer(persistentEntity);
+        CosmosItemResponse<ObjectNode> cosmosItemResponse = container.upsertItem(tree, requestOptions);
+        if (cosmosItemResponse.getStatusCode() == Constants.OK_STATUS_CODE) {
+            // cosmosItemResponse.item is null so we cannot deserialize it
+            return entity;
+        } else {
+            // Or return null?
+            throw new DataAccessException("Failed to update entity");
+        }
     }
 
     @Override
     public Optional<Number> executeUpdate(PreparedQuery<?, Number> preparedQuery) {
-        return Optional.empty();
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public <T> int delete(DeleteOperation<T> operation) {
+        T entity = operation.getEntity();
+        RuntimePersistentEntity persistentEntity = runtimeEntityRegistry.getEntity(entity.getClass());
+        ObjectNode objectNode = serializeToTree(persistentEntity, entity, Argument.of(operation.getRootEntity()));
+        CosmosContainer container = getContainer(persistentEntity);
+        CosmosItemRequestOptions requestOptions = new CosmosItemRequestOptions();
+        applyVersioning(persistentEntity, entity, objectNode, requestOptions);
+        CosmosItemResponse deleteResponse = container.deleteItem(objectNode, requestOptions);
+        if (deleteResponse.getStatusCode() == Constants.NO_CONTENT_STATUS_CODE) {
+            return 1;
+        }
         return 0;
     }
 
     @Override
     public <T> Optional<Number> deleteAll(DeleteBatchOperation<T> operation) {
-        return Optional.empty();
+        throw new UnsupportedOperationException();
     }
 
     private <T, R> List<SqlParameter> bindParameters(PreparedQuery<T, R> preparedQuery) {
@@ -529,12 +551,6 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         } else {
             cosmosDatabase.createContainerIfNotExists(containerProperties, throughputProperties);
         }
-    }
-
-    private <T> CosmosContainer getContainer(InsertOperation<T> operation) {
-        RuntimePersistentEntity<T> persistentEntity = runtimeEntityRegistry.getEntity(operation.getRootEntity());
-        CosmosContainer container = getContainer(database, persistentEntity);
-        return container;
     }
 
     private <T> CosmosContainer getContainer(RuntimePersistentEntity<T> persistentEntity) {
@@ -650,7 +666,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         PersistentProperty versionProperty = entity.getVersion();
         if (versionProperty != null) {
             objectNode.set(versionProperty.getName(), etagValue);
-            if (!versionProperty.getName().equals(Constants.ETAG_PROPERTY_DEFAULT_NAME)) {
+            if (!versionProperty.getPersistedName().equals(Constants.ETAG_PROPERTY_DEFAULT_NAME)) {
                 objectNode.remove(Constants.ETAG_PROPERTY_DEFAULT_NAME);
             }
         }
@@ -659,7 +675,7 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
     private <T> void mapVersionFieldToEtag(PersistentEntity entity, Object bean, ObjectNode cosmosObjectNode) {
         PersistentProperty versionProperty = entity.getVersion();
         if (versionProperty != null) {
-            if (!versionProperty.getName().equals(Constants.ETAG_PROPERTY_DEFAULT_NAME)) {
+            if (!versionProperty.getPersistedName().equals(Constants.ETAG_PROPERTY_DEFAULT_NAME)) {
                 cosmosObjectNode.remove(versionProperty.getName());
                 BeanWrapper beanWrapper = BeanWrapper.getWrapper(bean);
                 Optional<String> versionValue = beanWrapper.getProperty(versionProperty.getName(), String.class);
