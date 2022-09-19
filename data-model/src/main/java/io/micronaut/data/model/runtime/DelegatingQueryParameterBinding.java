@@ -37,14 +37,12 @@ public abstract class DelegatingQueryParameterBinding implements QueryParameterB
 
     @Override
     @Nullable
-    @Override
     public String getName() {
         return delegate.getName();
     }
 
     @Override
     @NonNull
-    @Override
     public String getRequiredName() {
         return delegate.getRequiredName();
     }
