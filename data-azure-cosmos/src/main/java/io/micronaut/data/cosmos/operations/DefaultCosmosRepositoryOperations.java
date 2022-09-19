@@ -423,6 +423,12 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         return entity;
     }
 
+    private <T> CosmosContainer getContainer(InsertOperation<T> operation) {
+        RuntimePersistentEntity<T> persistentEntity = runtimeEntityRegistry.getEntity(operation.getRootEntity());
+        CosmosContainer container = getContainer(database, persistentEntity);
+        return container;
+    }
+
     @Override
     public <T> T update(UpdateOperation<T> operation) {
         T entity = operation.getEntity();
@@ -524,6 +530,10 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         }); return paramList;
     }
 
+    private <T> CosmosContainer getContainer(RuntimePersistentEntity<T> persistentEntity) {
+        return getContainer(database, persistentEntity);
+    }
+
     @Override
     public <E, R> PreparedQuery<E, R> decorate(PreparedQuery<E, R> preparedQuery) {
         return new DefaultSqlPreparedQuery<>(preparedQuery);
@@ -551,10 +561,6 @@ final class DefaultCosmosRepositoryOperations extends AbstractRepositoryOperatio
         } else {
             cosmosDatabase.createContainerIfNotExists(containerProperties, throughputProperties);
         }
-    }
-
-    private <T> CosmosContainer getContainer(RuntimePersistentEntity<T> persistentEntity) {
-        return getContainer(database, persistentEntity);
     }
 
     private CosmosContainer getContainer(CosmosDatabase cosmosDatabase, RuntimePersistentEntity<?> persistentEntity) {

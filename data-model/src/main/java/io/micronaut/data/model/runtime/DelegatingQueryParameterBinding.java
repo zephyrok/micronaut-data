@@ -31,16 +31,18 @@ public abstract class DelegatingQueryParameterBinding implements QueryParameterB
 
     private final QueryParameterBinding delegate;
 
-    public DelegatingQueryParameterBinding(QueryParameterBinding delegate) {
+    protected DelegatingQueryParameterBinding(QueryParameterBinding delegate) {
         this.delegate = delegate;
     }
 
+    @Override
     @Nullable
     @Override
     public String getName() {
         return delegate.getName();
     }
 
+    @Override
     @NonNull
     @Override
     public String getRequiredName() {

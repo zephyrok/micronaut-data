@@ -28,7 +28,8 @@ import io.micronaut.data.model.query.builder.sql.SqlQueryBuilder;
 /**
  * The Azure Cosmos DB sql query builder.
  *
- * @since TODO
+ * @author radovanradic
+ * @since 3.8.0
  */
 public final class CosmosSqlQueryBuilder extends SqlQueryBuilder {
 
