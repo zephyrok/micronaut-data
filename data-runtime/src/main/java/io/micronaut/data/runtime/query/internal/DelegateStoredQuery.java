@@ -169,11 +169,4 @@ public interface DelegateStoredQuery<E, R> extends StoredQuery<E, R> {
     default int[] getIndexedParameterAutoPopulatedPreviousPropertyIndexes() {
         return getStoredQueryDelegate().getIndexedParameterAutoPopulatedPreviousPropertyIndexes();
     }
-
-    @Override
-    @Deprecated
-    default boolean hasInExpression() {
-        return getStoredQueryDelegate().hasInExpression();
-    }
-
 }
